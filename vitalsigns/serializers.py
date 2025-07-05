@@ -1,0 +1,8 @@
+# vitalsigns/serializers.py
+from rest_framework import serializers
+from .models import VitalSigns
+
+class VitalSignsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VitalSigns
+        fields = '__all__'  # شامل collar و pet هم می‌شود
