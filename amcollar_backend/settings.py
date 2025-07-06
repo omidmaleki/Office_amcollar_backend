@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'stress_pain',
     'django_apscheduler',
     'water_food',
+    'orders',
 ]
 
 AUTH_USER_MODEL = 'users.User'

@@ -21,4 +21,5 @@ urlpatterns = [
     path('api/activity_tracker/', include('activity_tracker.urls')),
     path('api/stresspain/', include('stress_pain.urls')),
     path('api/water_food/', include('water_food.urls')),
+    path('api/orders/', include('orders.urls')),
 ]
