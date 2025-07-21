@@ -11,6 +11,6 @@ class UserAdmin(BaseUserAdmin):                                             # Cr
         ('Role Info', {'fields': ('role', 'phone_number')}),                # Adding role and phone_number to admin form
                                           )
 
-    list_display  = ('username', 'email', 'role', 'phone_number', 'is_staff', 'is_active')
+    list_display  = ('id', 'username', 'email', 'role', 'phone_number', 'is_staff', 'is_active')
     list_filter   = ('role', 'is_staff', 'is_active')
-    search_fields = ('username', 'email', 'phone_number')
+    search_fields = ('username', 'email', 'phone_number', 'id')
