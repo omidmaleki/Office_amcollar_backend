@@ -101,11 +101,12 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'amcollar_db',
         'USER': 'amcollar_user',
-        'PASSWORD': '5560034185',
-        'HOST': 'localhost',
+        'PASSWORD': 'PassMind556OO34185@maanomidparvaresh',
+        'HOST': '127.0.0.1',
         'PORT': '5432',
     }
 }
+
 
 
 # Password validation
