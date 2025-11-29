@@ -1,6 +1,14 @@
-from decimal import Decimal
 from django.db import models
-from django.conf import settings
+
+class PetCategory(models.Model):
+    name = models.CharField(max_length=50)
+
+    class Meta:
+        verbose_name = "Pet Category"
+        verbose_name_plural = "Pet Categories"
+
+    def __str__(self):
+        return self.name
 
 
 class Pet(models.Model):
@@ -11,7 +19,7 @@ class Pet(models.Model):
 
     # Basic Info
     category = models.ForeignKey(
-        'PetCategory',
+        PetCategory,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -45,9 +53,10 @@ class Pet(models.Model):
     annual_vaccine_date = models.DateField(null=True, blank=True)
     other_vaccine_date = models.DateField(null=True, blank=True)
 
-    # Relations
+    # Relations to external service
     owner_id = models.IntegerField(null=True, blank=True)
     vet_ids = models.JSONField(default=list)
+
     # Metadata
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -57,6 +66,4 @@ class Pet(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        vet_name = self.vet.username if self.vet else "No Vet"
-        return f"{self.name} — Owner: {self.owner.username} | Vet: {vet_name}"
-
+        return f"{self.name} — Owner ID: {self.owner_id}"

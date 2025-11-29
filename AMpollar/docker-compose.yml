@@ -10,11 +10,21 @@ services:
       - ALLOWED_HOSTS=*
     depends_on:
       - owner
+      - pet
 
   owner:
     build: ./owner_service
     ports:
       - "8001:8000"
+    environment:
+      - DEBUG=True
+      - ALLOWED_HOSTS=*
+      - SECRET_KEY=some-secret
+
+  pet:
+    build: ./pet_service
+    ports:
+      - "8002:8000"
     environment:
       - DEBUG=True
       - ALLOWED_HOSTS=*
