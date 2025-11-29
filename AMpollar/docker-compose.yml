@@ -1,0 +1,21 @@
+version: "3.9"
+
+services:
+
+  gateway:
+    build: ./gateway
+    ports:
+      - "8000:8000"
+    environment:
+      - ALLOWED_HOSTS=*
+    depends_on:
+      - owner
+
+  owner:
+    build: ./owner_service
+    ports:
+      - "8001:8000"
+    environment:
+      - DEBUG=True
+      - ALLOWED_HOSTS=*
+      - SECRET_KEY=some-secret
