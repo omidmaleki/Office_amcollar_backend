@@ -1,4 +1,4 @@
-FROM python:3.10
+FROM python:3.10-slim
 
 WORKDIR /app
 
@@ -7,4 +7,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000", "--noreload"]
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
+
+# دستور پیشفرض برای اجرا سرور
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

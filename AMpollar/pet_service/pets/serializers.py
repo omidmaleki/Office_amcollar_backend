@@ -1,12 +1,9 @@
 from rest_framework import serializers
-from .models import Pet, PetCategory
-
-class PetCategorySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = PetCategory
-        fields = '__all__'
+from .models import Pet
 
 class PetSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pet
-        fields = '__all__'
+        fields = [
+            "id", "name", "species"
+        ]
