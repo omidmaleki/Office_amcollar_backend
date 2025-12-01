@@ -9,6 +9,8 @@ from django.views.decorators.csrf import csrf_exempt
 def sms_send(request):
     phone = request.data.get("phone")
     code = request.data.get("code")
+    if not phone or not code:
+        return Response({"success": False, "message": "phone and code required"}, status=400)
 
     result = sms_service.send_otp(phone, code)
     return Response(result)

@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-4t=egs2l1y$cr+5r+@+2vjik!is+x&ty%9w*t$mvl1cmdbp^&b
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -38,9 +38,13 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
+    "azbankgateways",
+
     'rest_framework',
     'shopping',
-    'basket',
+    # 'basket',
+    'product',
+    'payment',
 ]
 
 
@@ -126,3 +130,29 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+AZ_IRANIAN_BANK_GATEWAYS = {
+    "GATEWAYS": {
+        "SEP": {
+            "MERCHANT_CODE": "<YOUR MERCHANT CODE>",
+            "TERMINAL_CODE": "<YOUR TERMINAL CODE>",
+        },
+        "MELLAT": {
+            "TERMINAL_CODE": "<YOUR TERMINAL CODE>",
+            "USERNAME": "<YOUR USERNAME>",
+            "PASSWORD": "<YOUR PASSWORD>",
+        },
+    "IS_SAMPLE_FORM_ENABLE": True,  # اختیاری و پیش فرض غیر فعال است
+    "DEFAULT": "MELLAT",
+    "CURRENCY": "IRR",  # اختیاری
+    "BANK_TIMEOUT": 5,  # اختیاری - تنظیم کردن تایم اوت
+    "TRACKING_CODE_QUERY_PARAM": "tc",  # اختیاری
+    "TRACKING_CODE_LENGTH": 16,  # اختیاری
+    "SETTING_VALUE_READER_CLASS": "azbankgateways.readers.DefaultReader",  # اختیاری
+    "BANK_PRIORITIES": [
+    ],  # اختیاری
+    "IS_SAFE_GET_GATEWAY_PAYMENT": False,  # اختیاری، بهتر است True بزارید.
+    "CUSTOM_APP": None,  # اختیاری
+}
+}

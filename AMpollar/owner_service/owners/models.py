@@ -7,6 +7,7 @@ class Owner(models.Model):
     address = models.CharField(max_length=100, null=True, blank=True)
     pet_ids = models.JSONField(default=list)
     collar_ids = models.JSONField(default=dict, null=True, blank=True)
+    product_ids = models.JSONField(default=dict, null=True, blank=True)
 
     class Meta:
         verbose_name = "Owner"

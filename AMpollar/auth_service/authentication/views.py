@@ -10,6 +10,7 @@ import requests
 from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
 import os
+from rest_framework.permissions import AllowAny
 
 GATEWAY_SMS_URL = os.environ.get("GATEWAY_URL", "http://gateway:8000") + "/sms/"
 
@@ -102,21 +103,152 @@ class BaseVerifyOtpView(APIView):
         }, status=200)
 
 
-# Concrete owner/provider views
-class OwnerSendOtpView(BaseSendOtpView):
-    role = "owner"
+
+class OwnerSendOtpView(APIView):
+    permission_classes = []
+
+    def post(self, request):
+        phone = request.data.get("phone")
+        if not phone:
+            return Response({"success": False, "message": "phone required"}, status=400)
+
+        code = generate_code()  # مثلا 4 رقمی
+
+        # ارسال SMS
+        try:
+            resp = requests.post(GATEWAY_SMS_URL, json={"phone": phone, "code": code})
+            resp.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            return Response({"success": False, "message": str(e)}, status=500)
+
+        # ذخیره OTP در دیتابیس
+        expires_at = timezone.now() + timedelta(minutes=5)  # ۵ دقیقه اعتبار
+        OTP.objects.create(
+            phone=phone,
+            role="owner",
+            code_hash=OTP.make_hash(code),
+            expires_at=expires_at
+        )
+
+        return Response({
+            "success": True,
+            "code": code,
+            "sms_response": resp.json()
+        })
 
 
-class OwnerVerifyOtpView(BaseVerifyOtpView):
-    role = "owner"
+class OwnerVerifyOtpView(APIView):
+    permission_classes = [AllowAny]
 
+    def post(self, request):
+        phone = request.data.get("phone")
+        code = request.data.get("code")
+
+        if not phone or not code:
+            return Response({"success": False, "message": "phone and code required"}, status=400)
+
+        code_hash = OTP.make_hash(code)
+        try:
+            otp = OTP.objects.create(
+                phone=phone,
+                code_hash=OTP.make_hash(code),
+                expires_at=timezone.now() + timedelta(minutes=5),
+                used=False
+            )
+        except OTP.DoesNotExist:
+            return Response({"success": False, "message": "Invalid or expired code"}, status=400)
+
+        otp.used = True
+        otp.save()
+        try:
+            otp = OTP.objects.get(phone=phone, code_hash=code_hash, used=False, expires_at__gt=timezone.now())
+        except OTP.DoesNotExist:
+            return Response({"success": False, "message": "Invalid or expired code"}, status=400)
+
+        otp.used = True
+        otp.save()
+
+        owner, created = Owner.objects.get_or_create(phone=phone)
+
+        refresh = RefreshToken.for_user(owner)
+        return Response({
+            "success": True,
+            "access": str(refresh.access_token),
+            "refresh": str(refresh)
+        })
 
 class VetSendOtpView(BaseSendOtpView):
-    role = "vet"
+    permission_classes = []
+
+    def post(self, request):
+        phone = request.data.get("phone")
+        if not phone:
+            return Response({"success": False, "message": "phone required"}, status=400)
+
+        code = generate_code()  # مثلا 4 رقمی
+
+        # ارسال SMS
+        try:
+            resp = requests.post(GATEWAY_SMS_URL, json={"phone": phone, "code": code})
+            resp.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            return Response({"success": False, "message": str(e)}, status=500)
+
+        # ذخیره OTP در دیتابیس
+        expires_at = timezone.now() + timedelta(minutes=5)  # ۵ دقیقه اعتبار
+        OTP.objects.create(
+            phone=phone,
+            role="vet",
+            code_hash=OTP.make_hash(code),
+            expires_at=expires_at
+        )
+
+        return Response({
+            "success": True,
+            "code": code,
+            "sms_response": resp.json()
+        })
 
 
 class VetVerifyOtpView(BaseVerifyOtpView):
-    role = "vet"
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        phone = request.data.get("phone")
+        code = request.data.get("code")
+
+        if not phone or not code:
+            return Response({"success": False, "message": "phone and code required"}, status=400)
+
+        code_hash = OTP.make_hash(code)
+        try:
+            otp = OTP.objects.create(
+                phone=phone,
+                code_hash=OTP.make_hash(code),
+                expires_at=timezone.now() + timedelta(minutes=5),
+                used=False
+            )
+        except OTP.DoesNotExist:
+            return Response({"success": False, "message": "Invalid or expired code"}, status=400)
+
+        otp.used = True
+        otp.save()
+        try:
+            otp = OTP.objects.get(phone=phone, code_hash=code_hash, used=False, expires_at__gt=timezone.now())
+        except OTP.DoesNotExist:
+            return Response({"success": False, "message": "Invalid or expired code"}, status=400)
+
+        otp.used = True
+        otp.save()
+
+        owner, created = Owner.objects.get_or_create(phone=phone)
+
+        refresh = RefreshToken.for_user(owner)
+        return Response({
+            "success": True,
+            "access": str(refresh.access_token),
+            "refresh": str(refresh)
+        })
 
 
 class AssignRoleView(APIView):
