@@ -1,0 +1,10 @@
+CREATE DATABASE amcollar_auth;
+CREATE DATABASE amcollar_owner;
+CREATE DATABASE amcollar_pet;
+CREATE DATABASE amcollar_product;
+CREATE DATABASE amcollar_order;
+CREATE DATABASE amcollar_payment;
+CREATE DATABASE amcollar_notification;
+CREATE DATABASE amcollar_sms;
+CREATE DATABASE amcollar_vet;
+CREATE DATABASE amcollar_gateway;

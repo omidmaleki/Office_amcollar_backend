@@ -1,36 +1,42 @@
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, re_path
 from .views import (
-    OwnerProxy, PetProxy, RegisterOwnerPetInfo1ViewSet,
-    ShoppingProxy, sms_proxy, auth_proxy,
-# verify_otp_proxy, send_otp_proxy
+    OwnerProxy, PetProxy, ProductProxy, OrderProxy,
+    PaymentProxy, NotificationProxy, sms_proxy, auth_proxy,
+    VetProxy, RegisterOwnerPetInfoView,
 )
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
 
-    # Owner proxy
-    path('owners/', OwnerProxy.as_view(), name='owner-proxy'),
+    path("admin/", admin.site.urls),
 
-    # Pet proxy
-    path('pets/', PetProxy.as_view(), name='pet-proxy'),
+    # Owner service
+    path("owners/", OwnerProxy.as_view()),
 
-    # Shopping proxy
-    path('shopping/', ShoppingProxy.as_view(), name='shopping'),
+    # Pet service
+    path("pets/", PetProxy.as_view()),
 
-    # SMS
-    path('sms/', sms_proxy, name='sms_send_proxy'),
+    # Product service
+    path("products/", ProductProxy.as_view()),
 
-    # Send OTP
-    # path('auth/owners/send-otp/', send_otp_proxy, name='send_otp_proxy'),
-    # path("auth/owners/verify-otp/", verify_otp_proxy, name="verify_otp_proxy"),
-    #
-    # path('auth/vets/send-otp/', send_otp_proxy, name='send_otp_proxy'),
-    # path("auth/vets/verify-otp/", verify_otp_proxy, name="verify_otp_proxy"),
+    # Order service
+    path("orders/", OrderProxy.as_view()),
 
-    path("auth/<path:path>/", auth_proxy),
+    # Payment service
+    path("payments/", PaymentProxy.as_view()),
 
+    # Notifications
+    path("notifications/", NotificationProxy.as_view()),
 
-    # Register owner & pet
-    path('register/', RegisterOwnerPetInfo1ViewSet.as_view(), name='register_owner_pet')
+    # SMS service
+    path("sms/", sms_proxy),
+
+    # Auth - dynamic
+    re_path(r"^auth/(?P<path>.*)$", auth_proxy),
+
+    # Vet
+    path("vet/", VetProxy.as_view()),
+
+    # Register owner + pet (combined)
+    path("register/", RegisterOwnerPetInfoView.as_view()),
 ]

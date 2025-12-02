@@ -3,105 +3,128 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view
 import requests
 
+# ---------------------- SERVICE URLs ----------------------
 OWNER_SERVICE = "http://owner:8000"
 PET_SERVICE = "http://pet:8000"
+PRODUCT_SERVICE = "http://product:8000"
+ORDER_SERVICE = "http://order:8000"
+PAYMENT_SERVICE = "http://payment:8000"
+NOTIFICATION_SERVICE = "http://notification:8000"
 SMS_SERVICE = "http://sms:8000"
 AUTH_SERVICE = "http://auth:8000"
+VET_SERVICE = "http://vet:8000"
 
-# ---------------- Owner Proxy ----------------
-class OwnerProxy(APIView):
+
+# ---------------------- GENERIC PROXY CLASS ----------------------
+class BaseProxy(APIView):
+    SERVICE_URL = None
+
     def get(self, request):
-        """List all owners or filter by query params"""
-        resp = requests.get(f"{OWNER_SERVICE}/owners/", params=request.query_params)
+        resp = requests.get(f"{self.SERVICE_URL}", params=request.query_params)
         return Response(resp.json(), status=resp.status_code)
 
     def post(self, request):
-        """Create owner"""
-        resp = requests.post(f"{OWNER_SERVICE}/owners/", json=request.data)
-        try:
-            data = resp.json()
-        except ValueError:
-            data = {"detail": "No content returned from Owner service."}
-        return Response(data, status=resp.status_code)
-
-# ---------------- Pet Proxy ----------------
-class PetProxy(APIView):
-    def get(self, request):
-        resp = requests.get(f"{PET_SERVICE}/pets/", params=request.query_params)
+        resp = requests.post(f"{self.SERVICE_URL}", json=request.data)
         return Response(resp.json(), status=resp.status_code)
 
-    def post(self, request):
-        resp = requests.post(f"{PET_SERVICE}/pets/", json=request.data)
-        return Response(resp.json(), status=resp.status_code)
 
-# ---------------- Shopping Proxy ----------------
-class ShoppingProxy(APIView):
-    def get(self, request):
-        resp = requests.get(f"{PET_SERVICE}/pets/", params=request.query_params)
-        return Response(resp.json(), status=resp.status_code)
+# ---------------------- SPECIFIC PROXIES ----------------------
+class OwnerProxy(BaseProxy):
+    SERVICE_URL = f"{OWNER_SERVICE}/owners/"
 
-# ---------------- SMS Proxy ----------------
-@api_view(["POST"])
-def sms_proxy(request):
-    body = request.data
-    try:
-        resp = requests.post(f"{SMS_SERVICE}/sms/", json=body, timeout=5)
-        resp.raise_for_status()
-        return Response(resp.json(), status=resp.status_code)
-    except requests.exceptions.RequestException as e:
-        return Response({"success": False, "message": str(e)}, status=500)
 
-# ---------------- Send OTP Proxy ----------------
+class PetProxy(BaseProxy):
+    SERVICE_URL = f"{PET_SERVICE}/pets/"
 
+
+class ProductProxy(BaseProxy):
+    SERVICE_URL = f"{PRODUCT_SERVICE}/products/"
+
+
+class OrderProxy(BaseProxy):
+    SERVICE_URL = f"{ORDER_SERVICE}/orders/"
+
+
+class PaymentProxy(BaseProxy):
+    SERVICE_URL = f"{PAYMENT_SERVICE}/payments/"
+
+
+class NotificationProxy(BaseProxy):
+    SERVICE_URL = f"{NOTIFICATION_SERVICE}/notifications/"
+
+
+class VetProxy(BaseProxy):
+    SERVICE_URL = f"{VET_SERVICE}/pets/"
+
+
+# ---------------------- AUTH Proxy ----------------------
 @api_view(["POST"])
 def auth_proxy(request, path):
     """
-    Generic proxy for auth service (owners/vets)
-    Example: /auth/owners/send-otp/ → forwards to http://auth:8000/auth/owners/send-otp/
+    ANY request to /auth/<path>/ goes to auth service
+    Example:
+        /auth/owners/send-otp/
+        /auth/vets/login/
     """
-    url = f"http://auth:8000/auth/{path}/"
+    url = f"{AUTH_SERVICE}/auth/{path}/"
 
     try:
-        resp = requests.post(url, json=request.data, timeout=5)
+        resp = requests.post(url, json=request.data)
         return Response(resp.json(), status=resp.status_code)
-    except requests.exceptions.RequestException as e:
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+
+# ---------------------- SMS Proxy ----------------------
+@api_view(["POST"])
+def sms_proxy(request):
+    try:
+        resp = requests.post(f"{SMS_SERVICE}/sms/", json=request.data)
+        return Response(resp.json(), status=resp.status_code)
+    except Exception as e:
         return Response({"success": False, "message": str(e)}, status=500)
 
 
-# ---------------- Register Owner & Pet ----------------
-class RegisterOwnerPetInfo1ViewSet(APIView):
+# ---------------------- Combined Register Endpoint ----------------------
+class RegisterOwnerPetInfoView(APIView):
+    """
+    Register Owner + Pet in one API call
+    """
+
     def post(self, request):
         data = request.data
         owner_data = data.get("owner")
         pet_data = data.get("pet")
+        vet_id = data.get("vet")
 
         if not owner_data or not pet_data:
-            return Response({"detail": "owner and pet data required"}, status=400)
+            return Response({"detail": "owner + pet required"}, status=400)
 
-        # check owner exists
-        owner_check_res = requests.get(f"{OWNER_SERVICE}/owners/", params={"phone": owner_data["phone"]})
-        existing_owners = owner_check_res.json()
-        if existing_owners:
-            return Response({"detail": "این شماره قبلاً ثبت شده است."}, status=409)
-
-        # create pet
+        # ------------------ Create Pet ------------------
         pet_res = requests.post(f"{PET_SERVICE}/pets/", json=pet_data)
         if pet_res.status_code >= 400:
-            return Response({"detail": "خطا در سرویس pet"}, status=500)
-        pet_id = pet_res.json().get("id")
+            return Response({"detail": "pet service error"}, status=400)
 
-        # create owner
+        pet_json = pet_res.json()
+        pet_id = pet_json.get("id")  # فرض: عددی
+
+        # ------------------ Prepare Owner Payload ------------------
         owner_payload = {
-            "name": owner_data["name"],
-            "phone": owner_data["phone"],
+            "name": owner_data.get("name"),
+            "phone": owner_data.get("phone"),
             "address": owner_data.get("address", ""),
-            "pet_id": pet_id
+            "vet_id": vet_id,
+            "collar_ids": {str(pet_id): pet_data.get("name")},
+            "pet_ids": [pet_id]
         }
+
+        # ------------------ Create or Update Owner ------------------
         owner_res = requests.post(f"{OWNER_SERVICE}/owners/", json=owner_payload)
+        if owner_res.status_code >= 400:
+            return Response({"detail": "owner service error"}, status=owner_res.status_code)
 
         return Response({
-            "pet": pet_res.json(),
-            "owner": owner_res.json()
+            "owner": owner_res.json(),
+            "pet": pet_json,
+            "vet": {"id": vet_id}
         }, status=200)
-
-

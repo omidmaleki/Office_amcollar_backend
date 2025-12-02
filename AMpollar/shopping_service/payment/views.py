@@ -1,5 +1,4 @@
 
-# Create your views here.
 import logging
 from django.urls import reverse
 from azbankgateways import (
@@ -8,8 +7,12 @@ from azbankgateways import (
     default_settings as settings,
 )
 from azbankgateways.exceptions import AZBankGatewaysException
-
 from shopping_service.product.models import Product
+from .services import publish_purchase_completed
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+
 
 
 def go_to_gateway_view(request):
@@ -42,3 +45,43 @@ def go_to_gateway_view(request):
         logging.critical(e)
         # TODO: redirect to failed page.
         raise e
+
+
+class CompletePaymentView(APIView):
+    def post(self, request):
+        # 1) اعتبارسنجی پرداخت و… (کد خودت)
+
+        owner_id = request.data["owner_id"]
+        pet_id = request.data["pet_id"]
+        purchase_id = request.data["purchase_id"]
+
+        # 2) ارسال event بعد از نهایی شدن سفارش
+        publish_purchase_completed(owner_id, pet_id, purchase_id)
+
+        return Response({"status": "payment completed"})
+
+
+
+
+# payment/views.py
+from rest_framework.views import APIView
+from rest_framework.response import Response
+
+
+class ProcessPaymentView(APIView):
+    def post(self, request):
+        user_id = request.data["user_id"]
+        product_id = request.data["product_id"]
+        amount = request.data["amount"]
+        payment_id = "PAY-" + str(user_id) + "-" + str(product_id)
+
+        # ارسال به Kafka
+        publish_order_event({
+            "user_id": user_id,
+            "product_id": product_id,
+            "amount": amount,
+            "payment_id": payment_id
+        })
+
+        return Response({"status": "payment_success", "payment_id": payment_id})
+
