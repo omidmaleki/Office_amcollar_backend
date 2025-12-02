@@ -3,8 +3,11 @@ import os
 import django
 import json
 import time
+import signal
+import sys
+import logging
 from kafka import KafkaConsumer, KafkaProducer
-from kafka.errors import KafkaError
+from kafka.errors import KafkaError, NoBrokersAvailable
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "order_service.settings")
 django.setup()
@@ -12,88 +15,132 @@ django.setup()
 from .models import Order
 
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
+ORDER_TOPIC = "order_created"
+VET_TOPIC = "vet_order_created"
 
-print("🔄 Connecting to Kafka...")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
 
-# ====== ایجاد Kafka Consumer & Producer با Retry ======
-for i in range(12):
-    try:
-        consumer = KafkaConsumer(
-            "order_created",
-            bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
-            value_deserializer=lambda v: json.loads(v.decode("utf-8")),
-            auto_offset_reset="earliest",
-            group_id="order_group",     # گروه پایدارتر برای پردازش
-            enable_auto_commit=True
-        )
 
-        producer = KafkaProducer(
-            bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
-            value_serializer=lambda v: json.dumps(v).encode("utf-8")
-        )
+class OrderConsumer:
+    def __init__(self, topic=ORDER_TOPIC, group_id="order_group", retries=12, retry_delay=5):
+        self.topic = topic
+        self.group_id = group_id
+        self.retries = retries
+        self.retry_delay = retry_delay
+        self.consumer = None
+        self.producer = None
+        self.running = True
 
-        print("✅ Kafka connected successfully")
-        break
+        signal.signal(signal.SIGINT, self.stop)
+        signal.signal(signal.SIGTERM, self.stop)
 
-    except Exception as e:
-        print(f"⚠️ Kafka unavailable, retrying in 5 sec ({i+1}/12)...")
-        time.sleep(5)
-else:
-    raise Exception("❌ Kafka not available after 12 retries")
+        self.connect_kafka()
 
-print("🚀 Order Consumer Started")
-print("-------------------------------------------")
+    def stop(self, signum, frame):
+        logging.info("⏹️ Stopping OrderConsumer...")
+        self.running = False
+        if self.consumer:
+            self.consumer.close()
+        if self.producer:
+            self.producer.close()
+        sys.exit(0)
 
-# ======================================================
-#   حلقه اصلی مصرف پیام‌ها
-# ======================================================
-for msg in consumer:
-    print("📥 Raw message received:", msg)
+    def connect_kafka(self):
+        """اتصال به Kafka با retry"""
+        for attempt in range(1, self.retries + 1):
+            try:
+                self.consumer = KafkaConsumer(
+                    self.topic,
+                    bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
+                    value_deserializer=lambda v: json.loads(v.decode("utf-8")),
+                    auto_offset_reset="earliest",
+                    group_id=self.group_id,
+                    enable_auto_commit=True
+                )
+                self.producer = KafkaProducer(
+                    bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
+                    value_serializer=lambda v: json.dumps(v).encode("utf-8")
+                )
+                logging.info("✅ Kafka connected successfully")
+                return
+            except NoBrokersAvailable:
+                logging.warning(f"⚠️ Kafka not available, retrying in {self.retry_delay}s ({attempt}/{self.retries})...")
+                time.sleep(self.retry_delay)
+        raise Exception("❌ Kafka not available after retries")
 
-    try:
-        data = msg.value
-        print("📦 Parsed message:", data)
-    except Exception as e:
-        print("❌ Failed to parse message:", e)
-        continue
+    def create_order(self, data: dict) -> Order | None:
+        """ایجاد رکورد Order در دیتابیس"""
+        payment_id = data.get("payment_id")
+        if not payment_id:
+            logging.error("❌ payment_id missing in message, skipping")
+            return None
 
-    # ===== جلوگیری از ایجاد رکورد تکراری =====
-    if Order.objects.filter(payment_id=data["payment_id"]).exists():
-        print(f"⚠️ Order with payment_id={data['payment_id']} already exists → SKIPPED")
-        continue
+        if Order.objects.filter(payment_id=payment_id).exists():
+            logging.warning(f"⚠️ Order with payment_id={payment_id} already exists → SKIPPED")
+            return None
 
-    # ===== ایجاد Order =====
-    try:
-        order = Order.objects.create(
-            user_id=data["user_id"],
-            product_id=data["product_id"],
-            payment_id=data["payment_id"],
-            amount=data["amount"],
-            status="confirmed"
-        )
-        print(f"✅ Order #{order.id} created")
-    except Exception as e:
-        print("❌ Failed to create Order:", e)
-        continue
-
-    # ===== ارسال پیام به سرویس Vet =====
-    payload = {
-        "order_id": order.id,
-        "user_id": order.user_id,
-        "product_id": order.product_id
-    }
-
-    for attempt in range(5):
         try:
-            producer.send("vet_order_created", payload)
-            producer.flush()
-            print(f"📤 vet_order_created sent (order_id={order.id})")
-            break
-        except KafkaError as e:
-            print(f"⚠️ Failed sending to vet_order_created, retrying ({attempt+1}/5)...")
-            time.sleep(2)
-    else:
-        print("❌ Could not send message to vet_order_created after retries")
+            order = Order.objects.create(
+                user_id=data.get("user_id"),
+                collar_id=data.get("collar_id"),
+                payment_id=payment_id,
+                amount=data.get("amount"),
+                status="confirmed"
+            )
+            logging.info(f"✅ Order #{order.id} created")
+            return order
+        except Exception as e:
+            logging.error(f"❌ Failed to create Order: {e}")
+            return None
 
-    print("-------------------------------------------")
+    def send_to_vet(self, order: Order):
+        """ارسال پیام به سرویس Vet با retry"""
+        payload = {
+            "order_id": order.id,
+            "user_id": order.user_id,
+            "collar_id": order.collar_id
+        }
 
+        for attempt in range(1, 6):
+            try:
+                self.producer.send(VET_TOPIC, payload)
+                self.producer.flush()
+                logging.info(f"📤 vet_order_created sent (order_id={order.id})")
+                return
+            except KafkaError as e:
+                logging.warning(f"⚠️ Failed sending to vet_order_created, retrying ({attempt}/5)... Error: {e}")
+                time.sleep(2)
+        logging.error(f"❌ Could not send message to vet_order_created after retries (order_id={order.id})")
+
+    def run(self):
+        """حلقه اصلی مصرف پیام‌ها با مدیریت خطا"""
+        logging.info("🚀 Order Consumer Started")
+        while self.running:
+            try:
+                for msg in self.consumer:
+                    logging.info(f"📥 Raw message received: {msg}")
+                    try:
+                        data = msg.value
+                        logging.info(f"📦 Parsed message: {data}")
+                    except Exception as e:
+                        logging.error(f"❌ Failed to parse message: {e}")
+                        continue
+
+                    order = self.create_order(data)
+                    if order:
+                        self.send_to_vet(order)
+            except KafkaError as e:
+                logging.error(f"⚠️ Kafka error: {e}, reconnecting...")
+                self.connect_kafka()
+            except Exception as e:
+                logging.error(f"❌ Unexpected error: {e}, continuing...")
+                time.sleep(1)
+
+
+if __name__ == "__main__":
+    consumer = OrderConsumer()
+    consumer.run()
