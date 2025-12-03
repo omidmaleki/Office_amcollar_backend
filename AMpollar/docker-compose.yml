@@ -148,7 +148,7 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     command: >
       sh -c "
-        sleep 3;
+        sleep 6;
         python manage.py makemigrations --no-input &&
         python manage.py migrate --no-input &&
         python manage.py runserver 0.0.0.0:8000
@@ -174,7 +174,7 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     command: >
       sh -c "
-        sleep 6;
+        sleep 8;
         python manage.py makemigrations --no-input &&
         python manage.py migrate --no-input &&
         python manage.py runserver 0.0.0.0:8000
@@ -229,7 +229,7 @@ services:
       REDIS_HOST: redis
     command: >
       sh -c "
-        sleep 2;
+        sleep 10;
         python manage.py makemigrations --no-input &&
         python manage.py migrate --no-input &&
         python manage.py runserver 0.0.0.0:8000
