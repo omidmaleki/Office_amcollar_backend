@@ -6,7 +6,7 @@ import requests
 # ---------------------- SERVICE URLs ----------------------
 OWNER_SERVICE = "http://owner:8000"
 PET_SERVICE = "http://pet:8000"
-PRODUCT_SERVICE = "http://product:8000"
+COLLAR_SERVICE = "http://collar:8000"
 ORDER_SERVICE = "http://order:8000"
 PAYMENT_SERVICE = "http://payment:8000"
 NOTIFICATION_SERVICE = "http://notification:8000"
@@ -37,8 +37,8 @@ class PetProxy(BaseProxy):
     SERVICE_URL = f"{PET_SERVICE}/pets/"
 
 
-class ProductProxy(BaseProxy):
-    SERVICE_URL = f"{PRODUCT_SERVICE}/products/"
+class CollarProxy(BaseProxy):
+    SERVICE_URL = f"{COLLAR_SERVICE}/products/"
 
 
 class OrderProxy(BaseProxy):
@@ -92,39 +92,69 @@ class RegisterOwnerPetInfoView(APIView):
     """
 
     def post(self, request):
-        data = request.data
-        owner_data = data.get("owner")
-        pet_data = data.get("pet")
-        vet_id = data.get("vet")
+        try:
+            data = request.data
+            owner_data = data.get("owner")
+            pet_data = data.get("pet")
+            vet_id = data.get("vet")
 
-        if not owner_data or not pet_data:
-            return Response({"detail": "owner + pet required"}, status=400)
+            if not owner_data or not pet_data:
+                return Response({"detail": "owner + pet required"}, status=400)
 
-        # ------------------ Create Pet ------------------
-        pet_res = requests.post(f"{PET_SERVICE}/pets/", json=pet_data)
-        if pet_res.status_code >= 400:
-            return Response({"detail": "pet service error"}, status=400)
+            # ------------------ Create Pet ------------------
+            try:
+                pet_res = requests.post(f"{PET_SERVICE}/pets/", json=pet_data)
+            except requests.exceptions.RequestException:
+                return Response({"detail": "pet service unavailable"}, status=503)
 
-        pet_json = pet_res.json()
-        pet_id = pet_json.get("id")  # فرض: عددی
+            if pet_res.status_code >= 400:
+                return Response(
+                    {"detail": "pet service error", "error": pet_res.json()},
+                    status=pet_res.status_code
+                )
 
-        # ------------------ Prepare Owner Payload ------------------
-        owner_payload = {
-            "name": owner_data.get("name"),
-            "phone": owner_data.get("phone"),
-            "address": owner_data.get("address", ""),
-            "vet_id": vet_id,
-            "collar_ids": {str(pet_id): pet_data.get("name")},
-            "pet_ids": [pet_id]
-        }
+            pet_json = pet_res.json()
+            pet_id = pet_json.get("id")
 
-        # ------------------ Create or Update Owner ------------------
-        owner_res = requests.post(f"{OWNER_SERVICE}/owners/", json=owner_payload)
-        if owner_res.status_code >= 400:
-            return Response({"detail": "owner service error"}, status=owner_res.status_code)
+            # ------------------ Prepare Owner Payload ------------------
+            owner_payload = {
+                "name": owner_data.get("name"),
+                "phone": owner_data.get("phone"),
+                "address": owner_data.get("address", ""),
+                "vet_id": vet_id,
+                "collar_ids": {str(pet_id): pet_data.get("name")},
+                "pet_ids": [pet_id]
+            }
 
-        return Response({
-            "owner": owner_res.json(),
-            "pet": pet_json,
-            "vet": {"id": vet_id}
-        }, status=200)
+            # ------------------ Create Owner ------------------
+            try:
+                owner_res = requests.post(
+                    f"{OWNER_SERVICE}/owners/",
+                    json=owner_payload
+                )
+            except requests.exceptions.RequestException:
+                return Response({"detail": "owner service unavailable"}, status=503)
+
+            if owner_res.status_code == 409:
+                return Response(
+                    {"detail": "owner already exists"},
+                    status=409
+                )
+
+            if owner_res.status_code >= 400:
+                return Response(
+                    {"detail": "owner service error", "error": owner_res.json()},
+                    status=owner_res.status_code
+                )
+
+            return Response({
+                "owner": owner_res.json(),
+                "pet": pet_json,
+                "vet": {"id": vet_id}
+            }, status=200)
+
+        except Exception as e:
+            return Response(
+                {"detail": f"internal server error: {str(e)}"},
+                status=500
+            )

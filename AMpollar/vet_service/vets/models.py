@@ -22,7 +22,7 @@ class Vet(models.Model):
     collars = models.JSONField(default=list, blank=True)
     activated = models.BooleanField(default=True)
     vet_license_number = models.CharField(max_length=100)
-    rank = models.CharField(max_length=50, choices=(("star", "star"), ("elite", "elite")))
+    rank = models.CharField(max_length=50, choices=(("star", "star"), ("elite", "elite")), default="star")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

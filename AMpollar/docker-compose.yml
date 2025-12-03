@@ -100,17 +100,17 @@ services:
     command: >
       sh -c "
         sleep 2;
-        python manage.py makemigrations &&
-        python manage.py migrate &&
+        python manage.py makemigrations --no-input &&
+        python manage.py migrate --no-input &&
         python manage.py runserver 0.0.0.0:8000
       "
     ports:
       - "8002:8000"
 
   # ---------------- PRODUCT SERVICE ----------------
-  product:
-    build: ./product_service
-    container_name: amcollar-product
+  collar:
+    build: ./collar_service
+    container_name: amcollar-collar
     depends_on:
       - db
     environment:
@@ -118,8 +118,8 @@ services:
     command: >
       sh -c "
         sleep 2;
-        python manage.py makemigrations &&
-        python manage.py migrate &&
+        python manage.py makemigrations --no-input &&
+        python manage.py migrate --no-input &&
         python manage.py runserver 0.0.0.0:8000
       "
     ports:
@@ -138,8 +138,8 @@ services:
     command: >
       sh -c "
         sleep 2;
-        python manage.py makemigrations --noinput &&
-        python manage.py migrate --noinput &&
+        python manage.py makemigrations --no-input &&
+        python manage.py migrate --no-input &&
         python manage.py runserver 0.0.0.0:8000
       "
     ports:
@@ -164,8 +164,8 @@ services:
     command: >
       sh -c "
         sleep 2;
-        python manage.py makemigrations &&
-        python manage.py migrate &&
+        python manage.py makemigrations --no-input &&
+        python manage.py migrate --no-input &&
         python manage.py runserver 0.0.0.0:8000
       "
     ports:
@@ -218,8 +218,8 @@ services:
     command: >
       sh -c "
         sleep 2;
-        python manage.py makemigrations &&
-        python manage.py migrate &&
+        python manage.py makemigrations --no-input &&
+        python manage.py migrate --no-input &&
         python manage.py runserver 0.0.0.0:8000
       "
     ports:
@@ -242,9 +242,9 @@ services:
       - owner
       - pet
       - auth
-      - product
-      - order
+      - collar
       - payment
+      - order
       - notification
       - sms
     ports:

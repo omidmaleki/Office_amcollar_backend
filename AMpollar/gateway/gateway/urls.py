@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.urls import path, re_path
 from .views import (
-    OwnerProxy, PetProxy, ProductProxy, OrderProxy,
+    OwnerProxy, PetProxy, CollarProxy, OrderProxy,
     PaymentProxy, NotificationProxy, sms_proxy, auth_proxy,
     VetProxy, RegisterOwnerPetInfoView,
 )
@@ -17,7 +17,7 @@ urlpatterns = [
     path("pets/", PetProxy.as_view()),
 
     # Product service
-    path("products/", ProductProxy.as_view()),
+    path("collars/", CollarProxy.as_view()),
 
     # Order service
     path("orders/", OrderProxy.as_view()),

@@ -15,58 +15,40 @@ class OwnerViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         data = request.data
 
-        try:
-            with transaction.atomic():
-                # اگر owner با این شماره وجود دارد، آپدیت کن
-                owner, created = Owner.objects.get_or_create(
-                    phone=data["phone"],
-                    defaults={
-                        "name": data["name"],
-                        "address": data.get("address", ""),
-                        "vet_id": data.get("vet_id")
-                    }
+        required_fields = ["phone", "name"]
+        for f in required_fields:
+            if f not in data:
+                return Response(
+                    {"detail": f"{f} is required"},
+                    status=400
                 )
 
-                if not created:
-                    # update اطلاعات موجود
-                    owner.name = data.get("name", owner.name)
-                    owner.address = data.get("address", owner.address)
-                    owner.vet_id = data.get("vet_id", owner.vet_id)
-
-                # collar_ids
-                collar_ids = data.get("collar_ids", {})
-                if not owner.collar_ids:
-                    owner.collar_ids = {}
-                owner.collar_ids.update(collar_ids)
-
-                # pet_ids: اضافه کردن Pet ثبت شده
-                pet_ids = data.get("pet_ids", [])
-                if not owner.pet_ids:
-                    owner.pet_ids = []
-                for pid in pet_ids:
-                    if pid not in owner.pet_ids:
-                        owner.pet_ids.append(pid)
-
-                owner.save()
-
-        except IntegrityError:
+        if Owner.objects.filter(phone=data["phone"]).exists():
             return Response(
                 {"detail": "این شماره قبلاً ثبت شده است."},
-                status=status.HTTP_409_CONFLICT
+                status=409
             )
-        except (ValueError, TypeError) as e:
+
+        try:
+            with transaction.atomic():
+                owner = Owner.objects.create(
+                    phone=data["phone"],
+                    name=data["name"],
+                    address=data.get("address", ""),
+                    vet_id=data.get("vet_id"),
+                    collar_ids=data.get("collar_ids", {}),
+                    pet_ids=data.get("pet_ids", []),
+                )
+
+        except Exception as e:
             return Response(
-                {"detail": f"داده‌ها معتبر نیستند: {str(e)}"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        except KeyError as e:
-            return Response(
-                {"detail": f"کلید مورد نیاز موجود نیست: {str(e)}"},
-                status=status.HTTP_400_BAD_REQUEST
+                {"detail": f"خطا در ایجاد مالک: {str(e)}"},
+                status=500
             )
 
         serializer = OwnerSerializer(owner)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.data, status=201)
+
 
 GATEWAY_URL = "http://gateway:8000/sms/"
 

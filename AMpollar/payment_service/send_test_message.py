@@ -23,7 +23,7 @@ else:
 
 test_message = {
     "user_id": 999,
-    "product_id": 888,
+    "collar_id": 888,
     "payment_id": "test-payment-123",
     "amount": 123.45
 }
@@ -31,7 +31,7 @@ test_message = {
 # ارسال پیام با retry
 for attempt in range(5):
     try:
-        producer.send("order_created", test_message)
+        producer.send("payment_topic", test_message)
         producer.flush()  # flush روی خود producer
         print("✅ Test message sent to order_created topic")
         break

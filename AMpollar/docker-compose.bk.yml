@@ -95,8 +95,8 @@ services:
 
   # ---------------------- PRODUCT SERVICE ----------------------
   product:
-    build: ./product_service
-    container_name: amcollar-product
+    build: collar_service
+    container_name: amcollar-collar
     depends_on:
       - db
     environment:
