@@ -12,6 +12,10 @@ def send_order_event_to_vet(order_data):
     """
     ارسال پیام به vet_service
     """
-    producer.send("vetform_topic", order_data)
+    producer.send(
+        "vetform_topic",
+        key=str(order_data["purchase_id"]).encode("utf-8"),
+        value=order_data
+    )
     producer.flush()
     print(f"Sent order event to vet_service: {order_data}")

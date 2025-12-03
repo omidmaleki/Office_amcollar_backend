@@ -11,6 +11,8 @@ def listen_order_events():
         "vetform_topic",
         bootstrap_servers=KAFKA_BROKER,
         auto_offset_reset="earliest",
+        enable_auto_commit=False,
+        group_id="vet-form-service",
         value_deserializer=lambda m: json.loads(m.decode("utf-8"))
     )
     print("Vet service listening for order events...")
