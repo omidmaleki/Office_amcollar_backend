@@ -8,7 +8,7 @@ s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.connect((tcp_ip, tcp_port))
 
 data = {
-    "ACCx": 1.23,
+    "ACCx": 1.43,
     "ACCy": 4.56,
     "ACCz": 7.89,
     "Gx": 0.12,

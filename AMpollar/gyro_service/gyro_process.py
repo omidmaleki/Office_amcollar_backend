@@ -7,7 +7,7 @@ from kafka import KafkaProducer
 
 # ---------------- Kafka Config ----------------
 KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP", "kafka:9092")
-KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "gyro_topic")
+KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "tcp.raw_events")
 
 producer = None
 try:
