@@ -8,7 +8,6 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
-#      POSTGRES_DB: amcollar
     ports:
       - "5432:5432"
     volumes:
@@ -52,6 +51,7 @@ services:
       test: [ "CMD", "kafka-topics", "--bootstrap-server", "kafka:9092", "--list" ]
       interval: 5s
       retries: 10
+
 
   # -------------------- Kafka UI ---------------------
   kafka-ui:
@@ -275,11 +275,33 @@ services:
       - "9003:9003"
     environment:
       KAFKA_BOOTSTRAP: kafka:9092
-      TCP_PORTS: "9001,9002,9003"
+    command: >
+      sh -c "
+        sleep 5;
+        python -u /app/tcp_server.py
+      "
+    restart: always
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo > /dev/tcp/localhost/9001"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  gyro_service:
+    build: ./gyro_service
+    container_name: gyro-service
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "9007:9001"
+    environment:
+      KAFKA_BOOTSTRAP: kafka:9092
+      KAFKA_TOPIC: gyro_events
     command: >
       sh -c "
         sleep 3;
-        python -u /app/tcp_server.py
+        python -u /app/consumer.py
       "
     restart: always
 
