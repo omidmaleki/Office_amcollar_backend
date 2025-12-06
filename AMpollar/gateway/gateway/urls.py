@@ -4,7 +4,7 @@ from .views import (
     OwnerProxy, PetProxy, CollarProxy, OrderProxy,
     PaymentProxy, NotificationProxy, sms_proxy, auth_proxy,
     VetRegisterProxy, RegisterOwnerPetInfoView, VetFormsProxy,
-    MedicalInfoProxy,
+    MedicalInfoProxy, ThresholdProxy
 )
 
 urlpatterns = [
@@ -16,6 +16,9 @@ urlpatterns = [
 
     # Pet service
     path("pets/", PetProxy.as_view()),
+
+    # threshold service
+    path("thresholds/", ThresholdProxy.as_view()),
 
     # Product service
     path("collars/", CollarProxy.as_view()),

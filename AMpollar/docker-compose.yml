@@ -117,6 +117,23 @@ services:
       "
     ports:
       - "8002:8000"
+  # ---------------- Threshold SERVICE ----------------
+  threshold:
+    build: ./threshold_service
+    container_name: amcollar-threshold
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgres://postgres:password@db:5432/amcollar
+    command: >
+      sh -c "
+        sleep 2;
+        python manage.py makemigrations --no-input &&
+        python manage.py migrate --no-input &&
+        python manage.py runserver 0.0.0.0:8000
+      "
+    ports:
+      - "8011:8000"
 
   # ---------------- PRODUCT SERVICE ----------------
   collar:
@@ -260,6 +277,7 @@ services:
       - notification
       - sms
       - vet
+      - threshold
     ports:
       - "8000:8000"
 

@@ -14,6 +14,7 @@ NOTIFICATION_SERVICE = "http://notification:8000"
 SMS_SERVICE = "http://sms:8000"
 AUTH_SERVICE = "http://auth:8000"
 VET_SERVICE = "http://vet:8000"
+THRESHOLD_SERVICE = "http://threshold:8000"
 
 
 # ---------------------- GENERIC PROXY CLASS ----------------------
@@ -37,6 +38,8 @@ class OwnerProxy(BaseProxy):
 class PetProxy(BaseProxy):
     SERVICE_URL = f"{PET_SERVICE}/pets/"
 
+class ThresholdProxy(BaseProxy):
+    SERVICE_URL = f"{THRESHOLD_SERVICE}/thresholds/"
 
 class CollarProxy(BaseProxy):
     SERVICE_URL = f"{COLLAR_SERVICE}/products/"

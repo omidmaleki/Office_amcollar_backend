@@ -62,3 +62,4 @@ class VetInfoMedical(models.Model):
 
     def __str__(self):
         return f"Medical Record for Owner {self.owner_name} (Pet {self.pet_id})"
+

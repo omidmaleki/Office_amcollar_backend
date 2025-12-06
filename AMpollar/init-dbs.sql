@@ -7,4 +7,5 @@ CREATE DATABASE amcollar_payment;
 CREATE DATABASE amcollar_notification;
 CREATE DATABASE amcollar_sms;
 CREATE DATABASE amcollar_vet;
+CREATE DATABASE amcollar_threshold;
 CREATE DATABASE amcollar_gateway;
