@@ -2,9 +2,9 @@ from django.db import models
 
 class Pet(models.Model):
     name = models.CharField(max_length=100)
-    owner_id = models.IntegerField(null=True, blank=True)
-    vet_id = models.IntegerField(null=True, blank=True)
-    collar_id = models.IntegerField(null=True, blank=True)
+    owner_id = models.IntegerField(default=0,null=True, blank=True)
+    vet_id = models.IntegerField(default=0,null=True, blank=True)
+    collar_id = models.IntegerField(default=0,null=True, blank=True)
 
     species = models.CharField(
         max_length=100,

@@ -8,10 +8,11 @@ from .producer import send_payment_event
 
 class CreatePaymentView(APIView):
     def post(self, request):
-        user_id = request.data.get("user_id")
+        owner_id = request.data.get("owner_id")
         collar_id = request.data.get("collar_id")
+        vet_id = request.data.get("vet_id")
 
-        if not user_id or not collar_id:
+        if not owner_id or not collar_id:
             return Response({"error": "user_id and collar_id are required"}, status=400)
 
         # دریافت قیمت از Collar Service
@@ -29,7 +30,8 @@ class CreatePaymentView(APIView):
         # ایجاد Payment
         transaction_id = str(uuid.uuid4())
         payment = Payment.objects.create(
-            user_id=user_id,
+            vet_id=vet_id,
+            owner_id=owner_id,
             collar_id=collar_id,
             amount=amount,
             status="success",
@@ -38,7 +40,8 @@ class CreatePaymentView(APIView):
 
         # ---------------- Kafka Event ----------------
         event_data = {
-            "user_id": user_id,
+            "vet_id": vet_id,
+            "owner_id": owner_id,
             "collar_id": collar_id,
             "amount": float(amount),
             "payment_id": transaction_id

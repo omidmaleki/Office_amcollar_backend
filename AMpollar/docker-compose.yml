@@ -75,8 +75,8 @@ services:
     command: >
       sh -c "
         sleep 2;
-        python manage.py makemigrations &&
-        python manage.py migrate &&
+        python manage.py makemigrations --no-input &&
+        python manage.py migrate --no-input &&
         python manage.py runserver 0.0.0.0:8000
       "
     ports:
@@ -93,8 +93,8 @@ services:
     command: >
       sh -c "
         sleep 2;
-        python manage.py makemigrations &&
-        python manage.py migrate &&
+        python manage.py makemigrations --no-input &&
+        python manage.py migrate --no-input &&
         python manage.py runserver 0.0.0.0:8000
       "
     ports:
@@ -259,6 +259,7 @@ services:
       - order
       - notification
       - sms
+      - vet
     ports:
       - "8000:8000"
 

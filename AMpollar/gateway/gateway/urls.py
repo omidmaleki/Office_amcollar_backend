@@ -3,7 +3,8 @@ from django.urls import path, re_path
 from .views import (
     OwnerProxy, PetProxy, CollarProxy, OrderProxy,
     PaymentProxy, NotificationProxy, sms_proxy, auth_proxy,
-    VetProxy, RegisterOwnerPetInfoView,
+    VetRegisterProxy, RegisterOwnerPetInfoView, VetFormsProxy,
+    MedicalInfoProxy,
 )
 
 urlpatterns = [
@@ -22,6 +23,7 @@ urlpatterns = [
     # Order service
     path("orders/", OrderProxy.as_view()),
 
+
     # Payment service
     path("payments/", PaymentProxy.as_view()),
 
@@ -35,7 +37,10 @@ urlpatterns = [
     re_path(r"^auth/(?P<path>.*)$", auth_proxy),
 
     # Vet
-    path("vet/", VetProxy.as_view()),
+    # path("vet/", VetRegisterProxy.as_view()),
+    path("vet/vets/register/", VetRegisterProxy.as_view()),
+    path("vet/vet-forms/", VetFormsProxy.as_view()),
+    path("vet/medical-info/", MedicalInfoProxy.as_view()),
 
     # Register owner + pet (combined)
     path("register/", RegisterOwnerPetInfoView.as_view()),

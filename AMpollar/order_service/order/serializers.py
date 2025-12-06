@@ -6,7 +6,8 @@ class OrderSerializer(serializers.ModelSerializer):
         model = Order
         fields = [
             "id",
-            "user_id",
+            "vet_id",
+            "owner_id",
             "collar_id",
             "amount",
             "payment_id",
