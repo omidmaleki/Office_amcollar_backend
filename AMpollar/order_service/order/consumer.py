@@ -5,6 +5,7 @@ from .models import Order
 from .producer import send_order_event_to_vet
 
 PET_SERVICE = "http://pet:8000"
+THRESHOLD_SERVICE = "http://threshold:8000"
 KAFKA_BROKER = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
 
 
@@ -22,58 +23,116 @@ def listen_payment_events():
             data = message.value
             print(f"[OrderService] Received payment event: {data}")
 
-            # ---------- پیدا کردن pet_id ----------
-            pet_id = None
+            owner_id = data["owner_id"]
+            collar_id = data["collar_id"]
+            vet_id = data["vet_id"]
+
+            # -----------------------------------------------------
+            # 1) Fetch owner pets
+            # -----------------------------------------------------
             try:
-                resp = requests.get(f"{PET_SERVICE}/pets/", params={"owner_id": data["owner_id"]}, timeout=5)
+                resp = requests.get(f"{PET_SERVICE}/pets/", params={"owner_id": owner_id}, timeout=5)
                 resp.raise_for_status()
                 pets = resp.json()
-                print(f"[OrderService] Pets for owner {data['owner_id']}: {pets}")
-
-                # فرض: هر pet یک collar_id دارد
-                pet = next((p for p in pets if p.get("collar_id") == data["collar_id"]), None)
-                if not pet:
-                    print(f"[OrderService] No pet found for owner {data['owner_id']} with collar {data['collar_id']}")
-                    continue
-                pet_id = pet["id"]
-                print(f"[OrderService] Selected pet_id: {pet_id}")
-            except requests.exceptions.RequestException as e:
-                print(f"[OrderService] Failed to fetch pets: {e}")
-                continue
             except Exception as e:
-                print(f"[OrderService] Unexpected error while fetching pets: {e}")
+                print(f"[OrderService] ERROR fetching pets → {e}")
                 continue
 
-            # ---------- ایجاد رکورد Order ----------
+            if not pets:
+                print("[OrderService] Owner has no pets.")
+                continue
+
+            pet = next((p for p in pets if p.get("collar_id") in [0, None]), pets[-1])
+            pet_id = pet["id"]
+
+            # -----------------------------------------------------
+            # 2) Update collar on selected pet
+            # -----------------------------------------------------
+            try:
+                requests.patch(
+                    f"{PET_SERVICE}/pets/{pet_id}/",
+                    json={"collar_id": collar_id},
+                    timeout=5
+                )
+            except Exception as e:
+                print(f"[OrderService] ERROR updating pet → {e}")
+                continue
+
+            # -----------------------------------------------------
+            # 3) Fetch full Pet Info
+            # -----------------------------------------------------
+            try:
+                pet_detail = requests.get(f"{PET_SERVICE}/pets/{pet_id}/", timeout=5).json()
+            except:
+                pet_detail = {}
+
+            # -----------------------------------------------------
+            # 4) Fetch Threshold info for the collar
+            # -----------------------------------------------------
+            try:
+                response = requests.get(
+                    f"{THRESHOLD_SERVICE}/thresholds/",
+                    params={"pet_id": pet_id},
+                    timeout=5
+                )
+                response.raise_for_status()
+                th_list = response.json()
+
+                if isinstance(th_list, list) and len(th_list) > 0:
+                    th = th_list[0]  # آخرین مقدار یا اولین؟ بستگی دارد
+                else:
+                    th = {}
+
+            except Exception as e:
+                print("[OrderService] ERROR fetching threshold →", e)
+                th = {}
+
+            # -----------------------------------------------------
+            # 5) Create Order
+            # -----------------------------------------------------
             try:
                 with transaction.atomic():
                     order = Order.objects.create(
-                        vet_id=data["vet_id"],
-                        owner_id=data["owner_id"],
-                        collar_id=data["collar_id"],
+                        vet_id=vet_id,
+                        owner_id=owner_id,
                         pet_id=pet_id,
-                        payment_id=data["payment_id"],
+                        collar_id=collar_id,
+                        payment_id=data.get("payment_id"),
                         amount=data.get("amount", 0),
                         status="confirmed"
                     )
-                print(f"[OrderService] Order created: {order.id}")
             except Exception as e:
-                print(f"[OrderService] Failed to create Order: {e}")
+                print(f"[OrderService] ERROR creating order → {e}")
                 continue
 
-            # ---------- ارسال event به Vet Service ----------
-            try:
-                vet_event = {
-                    "vet_id": order.vet_id,
-                    "owner_id": order.owner_id,
-                    "pet_id": order.pet_id,
-                    "purchase_id": order.id,
-                    "status": "pending"
-                }
-                send_order_event_to_vet(vet_event)
-                print(f"[OrderService] Sent vet event: {vet_event}")
-            except Exception as e:
-                print(f"[OrderService] Failed to send vet event: {e}")
+            # -----------------------------------------------------
+            # 6) Build FULL vet event
+            # -----------------------------------------------------
+            vet_event = {
+                "vet_id": vet_id,
+                "owner_id": owner_id,
+                "pet_id": pet_id,
+                "purchase_id": order.id,
+                "status": "pending",
+
+                # Pet Info
+                "pet_name": pet_detail.get("name"),
+                "pet_age": pet_detail.get("age"),
+                "pet_race": pet_detail.get("race"),
+                "pet_image": pet_detail.get("pet_image"),
+                "pet_sex": pet_detail.get("sex"),
+                "species": pet_detail.get("species"),
+
+                # Threshold
+                "body_temperature": th.get("body_temperature"),
+                "hrv": th.get("hrv"),
+            }
+
+            # -----------------------------------------------------
+            # 7) Send to Vet service
+            # -----------------------------------------------------
+            send_order_event_to_vet(vet_event)
+            print("[OrderService] Vet event sent:", vet_event)
 
         except Exception as e:
             print(f"[OrderService] Unexpected error: {e}")

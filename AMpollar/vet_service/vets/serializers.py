@@ -22,15 +22,8 @@ class VetSerializer(serializers.ModelSerializer):
 class VetFormSerializer(serializers.ModelSerializer):
     class Meta:
         model = VetForm
-        fields = [
-            "id",
-            "owner_id",
-            "pet_id",
-            "vet_id",
-            "purchase_id",
-            "status",
-            "created_at"
-        ]
+        fields = '__all__'
+
 
 OWNER_SERVICE_URL = "http://owner:8000/owners/"
 class VetInfoMedicalSerializer(serializers.ModelSerializer):

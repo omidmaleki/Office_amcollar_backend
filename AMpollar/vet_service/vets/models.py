@@ -21,15 +21,26 @@ class Vet(models.Model):
 
 
 class VetForm(models.Model):
-    vet_id = models.ForeignKey(Vet, on_delete=models.CASCADE, related_name="vets", db_column="vet_id")
+    vet_id = models.ForeignKey(Vet, on_delete=models.CASCADE)
+
+    # For identifying records
     owner_id = models.IntegerField()
     pet_id = models.IntegerField()
     purchase_id = models.IntegerField()
+
+    # Pet Info stored locally
+    pet_name = models.CharField(max_length=255, null=True, blank=True)
+    pet_age = models.IntegerField(null=True, blank=True)
+    pet_race = models.CharField(max_length=255, null=True, blank=True)
+    pet_image = models.TextField(null=True, blank=True)
+
+    # Threshold data
+    body_temperature = models.FloatField(null=True, blank=True)
+    hrv = models.FloatField(null=True, blank=True)
+
     status = models.CharField(max_length=50, default="pending")
     created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"VetForm #{self.id} for Owner {self.owner_id}"
+    updated_at = models.DateTimeField(auto_now=True)
 
 
 

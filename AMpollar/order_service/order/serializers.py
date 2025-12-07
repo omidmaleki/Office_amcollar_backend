@@ -14,3 +14,10 @@ class OrderSerializer(serializers.ModelSerializer):
             "status",
             "created_at"
         ]
+
+class VetNewOrderSerializer(serializers.Serializer):
+    order_id = serializers.IntegerField()
+    owner_name = serializers.CharField(allow_null=True)
+    pet_name = serializers.CharField(allow_null=True)
+    pet_image = serializers.CharField(allow_null=True)
+    purchase_date = serializers.DateTimeField()

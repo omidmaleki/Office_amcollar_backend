@@ -15,6 +15,7 @@ class Pet(models.Model):
         max_length=10,
         choices=(("male", "Male"), ("female", "Female"))
     )
+    pet_image = models.ImageField(null=True, blank=True)
     race = models.CharField(max_length=100, null=True, blank=True)
     weight = models.FloatField(null=True, blank=True, default=5)
     neutered = models.BooleanField(default=False)

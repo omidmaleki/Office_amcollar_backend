@@ -97,6 +97,17 @@ class PaymentProxy(BaseProxy):
 class NotificationProxy(BaseProxy):
     SERVICE_URL = f"{NOTIFICATION_SERVICE}/notifications/"
 
+class VetNewOrderProxyView(APIView):
+    """
+    Proxy برای نمایش سفارش‌های جدید به Vet
+    """
+    def get(self, request):
+        try:
+            resp = requests.get(f"{ORDER_SERVICE}/vet-new-order/", timeout=5)
+            resp.raise_for_status()
+            return Response(resp.json())
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
 
 # class VetProxy(APIView):
 #     SERVICE_URL = VET_SERVICE   # http://vet:8000
@@ -157,8 +168,13 @@ class VetFormsProxy(APIView):
     """
     Proxy: Forward requests to Vet Forms service
     """
-    def get(self, request):
+
+    def get(self, request, *args, **kwargs):
+        pk = kwargs.get('pk')
         url = f"{VET_SERVICE}/vet-forms/"
+        if pk is not None:
+            url += f"{pk}/"
+
         try:
             resp = requests.get(url, params=request.query_params, timeout=5)
             data = resp.json()
@@ -169,7 +185,7 @@ class VetFormsProxy(APIView):
 
         return Response(data, status=resp.status_code)
 
-    def post(self, request):
+    def post(self, request, *args, **kwargs):
         url = f"{VET_SERVICE}/vet-forms/"
         try:
             resp = requests.post(url, json=request.data, timeout=5)
@@ -180,6 +196,39 @@ class VetFormsProxy(APIView):
             data = {"detail": resp.text}
 
         return Response(data, status=resp.status_code)
+
+    def put(self, request, *args, **kwargs):
+        pk = kwargs.get('pk')
+        if not pk:
+            return Response({"detail": "Missing pk for update"}, status=400)
+
+        url = f"{VET_SERVICE}/vet-forms/{pk}/"
+        try:
+            resp = requests.put(url, json=request.data, timeout=5)
+            data = resp.json()
+        except requests.exceptions.RequestException:
+            return Response({"detail": "vet service unavailable"}, status=503)
+        except ValueError:
+            data = {"detail": resp.text}
+
+        return Response(data, status=resp.status_code)
+
+    def patch(self, request, *args, **kwargs):
+        pk = kwargs.get('pk')
+        if not pk:
+            return Response({"detail": "Missing pk for partial update"}, status=400)
+
+        url = f"{VET_SERVICE}/vet-forms/{pk}/"
+        try:
+            resp = requests.patch(url, json=request.data, timeout=5)
+            data = resp.json()
+        except requests.exceptions.RequestException:
+            return Response({"detail": "vet service unavailable"}, status=503)
+        except ValueError:
+            data = {"detail": resp.text}
+
+        return Response(data, status=resp.status_code)
+
 
 class MedicalInfoProxy(APIView):
     """
@@ -238,6 +287,7 @@ def sms_proxy(request):
 
 # ---------------------- Combined Register Endpoint ----------------------
 class RegisterOwnerPetInfoView(APIView):
+
     def post(self, request):
         try:
             data = request.data
@@ -246,9 +296,14 @@ class RegisterOwnerPetInfoView(APIView):
             vet_id = data.get("vet")
 
             if not owner_data or not pet_data:
-                return Response({"detail": "owner + pet required"}, status=400)
+                return Response(
+                    {"detail": "owner and pet fields are required"},
+                    status=400
+                )
 
-            # ---------------- Create Owner ----------------
+            # ------------------------
+            # 1) Create Owner
+            # ------------------------
             owner_payload = {
                 "name": owner_data.get("name"),
                 "phone": owner_data.get("phone"),
@@ -259,32 +314,62 @@ class RegisterOwnerPetInfoView(APIView):
             }
 
             owner_res = requests.post(f"{OWNER_SERVICE}/owners/", json=owner_payload)
+
+            if owner_res.status_code >= 400:
+                return Response(
+                    {
+                        "detail": "Owner service error",
+                        "error": owner_res.json()
+                    },
+                    status=owner_res.status_code
+                )
+
             owner_json = owner_res.json()
             owner_id = owner_json.get("id")
 
-            # ---------------- Create Pet ----------------
+            if not owner_id:
+                return Response({"detail": "Owner service did not return id"}, status=500)
+
+            # ------------------------
+            # 2) Create Pet
+            # ------------------------
             pet_payload = {
                 "name": pet_data.get("name"),
                 "species": pet_data.get("species"),
-                "owner_id": owner_id
+                "sex": pet_data.get("sex"),
+                "age": pet_data.get("age"),
+                "race": pet_data.get("race"),
+                "owner_id": owner_id,
+                "vet_id": vet_id,
+                "collar_id": 0
             }
 
             pet_res = requests.post(f"{PET_SERVICE}/pets/", json=pet_payload)
+
+            if pet_res.status_code >= 400:
+                # 🔥 اگر pet ساخته نشد → owner را rollback می‌کنیم
+                requests.delete(f"{OWNER_SERVICE}/owners/{owner_id}/")
+                return Response(
+                    {
+                        "detail": "Pet service error",
+                        "error": pet_res.json()
+                    },
+                    status=pet_res.status_code
+                )
+
             pet_json = pet_res.json()
             pet_id = pet_json.get("id")
 
-            # ---------------- Assign Collar ID = pet_id ----------------
-            collar_id = pet_id  # 👈 مهم
+            if not pet_id:
+                requests.delete(f"{OWNER_SERVICE}/owners/{owner_id}/")
+                return Response({"detail": "Pet service did not return id"}, status=500)
 
-            requests.patch(
-                f"{PET_SERVICE}/pets/{pet_id}/",
-                json={"collar_id": collar_id}
-            )
-
-            # ---------------- Update Owner ----------------
+            # ------------------------
+            # 3) Update Owner with pet_id
+            # ------------------------
             owner_update_payload = {
                 "pet_ids": [pet_id],
-                "collar_ids": {str(pet_id): pet_data.get("name")}
+                "collar_ids": {}
             }
 
             owner_update_res = requests.patch(
@@ -292,11 +377,33 @@ class RegisterOwnerPetInfoView(APIView):
                 json=owner_update_payload
             )
 
-            return Response({
-                "owner": owner_update_res.json(),
-                "pet": {**pet_json, "collar_id": collar_id},
-                "vet": {"id": vet_id}
-            }, status=200)
+            if owner_update_res.status_code >= 400:
+                # 🔥 rollback: pet را حذف می‌کنیم
+                requests.delete(f"{PET_SERVICE}/pets/{pet_id}/")
+                requests.delete(f"{OWNER_SERVICE}/owners/{owner_id}/")
+
+                return Response(
+                    {
+                        "detail": "Failed to update owner with pet_id",
+                        "error": owner_update_res.json()
+                    },
+                    status=owner_update_res.status_code
+                )
+
+            return Response(
+                {
+                    "owner": owner_update_res.json(),
+                    "pet": pet_json,
+                    "vet": {"id": vet_id}
+                },
+                status=200
+            )
+
+        except requests.exceptions.RequestException as e:
+            return Response(
+                {"detail": f"Network error communicating with microservices: {str(e)}"},
+                status=503
+            )
 
         except Exception as e:
             return Response({"detail": str(e)}, status=500)
