@@ -8,8 +8,9 @@ import time
 OWNER_SERVICE = "http://owner:8000"
 PET_SERVICE = "http://pet:8000"
 COLLAR_SERVICE = "http://collar:8000"
-ORDER_SERVICE = "http://order:8000"
-PAYMENT_SERVICE = "http://payment:8000"
+# ORDER_SERVICE = "http://order:8000"
+# PAYMENT_SERVICE = "http://payment:8000"
+SALE_SERVICE = "http://sale:8000"
 NOTIFICATION_SERVICE = "http://notification:8000"
 SMS_SERVICE = "http://sms:8000"
 AUTH_SERVICE = "http://auth:8000"
@@ -45,11 +46,12 @@ class CollarProxy(BaseProxy):
     SERVICE_URL = f"{COLLAR_SERVICE}/products/"
 
 
-class OrderProxy(BaseProxy):
+class OrderProxy(APIView):
     def get(self, request):
         try:
-            # 1) دریافت لیست سفارش‌ها
-            orders_res = requests.get(f"{ORDER_SERVICE}/orders/")
+            # 1) دریافت لیست سفارش‌ها از سرویس واحد sale-service
+            orders_res = requests.get(f"{SALE_SERVICE}/order/")
+            orders_res.raise_for_status()
             orders = orders_res.json()
 
             result = []
@@ -58,11 +60,15 @@ class OrderProxy(BaseProxy):
                 owner_id = o["owner_id"]
                 collar_id = o["collar_id"]
 
-                # 2) دریافت صاحب
-                owner = requests.get(f"{OWNER_SERVICE}/owners/{owner_id}/").json()
+                # 2) دریافت اطلاعات owner
+                owner_res = requests.get(f"{OWNER_SERVICE}/owners/{owner_id}/")
+                owner_res.raise_for_status()
+                owner = owner_res.json()
 
-                # 3) پیدا کردن pet از روی owner_id + collar_id
-                pets = requests.get(f"{PET_SERVICE}/pets/", params={"owner_id": owner_id}).json()
+                # 3) دریافت pet بر اساس owner_id
+                pets_res = requests.get(f"{PET_SERVICE}/pets/", params={"owner_id": owner_id})
+                pets_res.raise_for_status()
+                pets = pets_res.json()
 
                 pet = next(
                     (p for p in pets if str(p.get("collar_id")) == str(collar_id)),
@@ -70,18 +76,22 @@ class OrderProxy(BaseProxy):
                 )
 
                 if not pet:
-                    return Response({"error": f"pet not found for owner={owner_id}, collar={collar_id}"}, status=404)
+                    result.append({
+                        "order_id": o["id"],
+                        "error": f"No pet found for owner={owner_id}, collar={collar_id}"
+                    })
+                    continue
 
                 result.append({
                     "order_id": o["id"],
                     "status": o["status"],
-                    "pet_name": pet["name"],
-                    "owner_name": owner["name"],
-                    "owner_phone": owner["phone"],
-                    "collar_id": pet["collar_id"],
-                    "pet_id": pet["id"],
-                    "vet_id": o["vet_id"],
-                    "created_at": o["created_at"]
+                    "pet_name": pet.get("name"),
+                    "owner_name": owner.get("name"),
+                    "owner_phone": owner.get("phone"),
+                    "collar_id": pet.get("collar_id"),
+                    "pet_id": pet.get("id"),
+                    "vet_id": o.get("vet_id"),
+                    "created_at": o.get("created_at"),
                 })
 
             return Response(result)
@@ -90,8 +100,8 @@ class OrderProxy(BaseProxy):
             return Response({"error": str(e)}, status=500)
 
 
-class PaymentProxy(BaseProxy):
-    SERVICE_URL = f"{PAYMENT_SERVICE}/payments/"
+# class PaymentProxy(BaseProxy):
+#     SERVICE_URL = f"{PAYMENT_SERVICE}/payments/"
 
 
 class NotificationProxy(BaseProxy):
@@ -103,7 +113,8 @@ class VetNewOrderProxyView(APIView):
     """
     def get(self, request):
         try:
-            resp = requests.get(f"{ORDER_SERVICE}/vet-new-order/", timeout=5)
+            # resp = requests.get(f"{ORDER_SERVICE}/vet-new-order/", timeout=5)
+            resp = requests.get(f"{SALE_SERVICE}/vet-new-order/", timeout=5)
             resp.raise_for_status()
             return Response(resp.json())
         except Exception as e:

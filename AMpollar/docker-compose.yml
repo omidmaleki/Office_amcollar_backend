@@ -153,36 +153,10 @@ services:
     ports:
       - "8007:8000"
 
-  # ---------------- ORDER SERVICE ----------------
-  order:
-    build: ./order_service
-    container_name: amcollar-order
-    depends_on:
-      - db
-      - kafka
-    environment:
-      DATABASE_URL: postgres://postgres:password@db:5432/amcollar
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-    command: >
-      sh -c "
-        sleep 6;
-        python manage.py makemigrations --no-input &&
-        python manage.py migrate --no-input &&
-        python manage.py runserver 0.0.0.0:8000
-      "
-    ports:
-      - "8008:8000"
 
-  order_worker:
-    build: ./order_service
-    command: python -u -m order.consumer
-    environment:
-      - PYTHONUNBUFFERED=1
-
-  # ---------------- PAYMENT SERVICE ----------------
-  payment:
-    build: ./payment_service
-    container_name: amcollar-payment
+  sale:
+    build: ./sale_service
+    container_name: amcollar-sale
     depends_on:
       - kafka
       - db
@@ -197,7 +171,7 @@ services:
         python manage.py runserver 0.0.0.0:8000
       "
     ports:
-      - "8009:8000"
+      - "8008:8000"
 
   # ---------------- NOTIFICATION SERVICE ----------------
   notification:
@@ -272,8 +246,9 @@ services:
       - pet
       - auth
       - collar
-      - payment
-      - order
+#      - payment
+#      - order
+      - sale
       - notification
       - sms
       - vet
