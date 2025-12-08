@@ -168,22 +168,6 @@ services:
       - "8008:8000"
 
   # ---------------- NOTIFICATION SERVICE ----------------
-  notification:
-    build: ./notification_service
-    container_name: amcollar-notification
-    depends_on:
-      - kafka
-    environment:
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-    command: >
-      sh -c "
-        sleep 2;
-        python manage.py makemigrations &&
-        python manage.py migrate &&
-        python manage.py runserver 0.0.0.0:8000
-      "
-    ports:
-      - "8010:8000"
 
   # ---------------- SMS SERVICE ----------------
   sms:
@@ -228,7 +212,6 @@ services:
       - auth
       - collar
       - sale
-      - notification
       - sms
       - vet
       - threshold

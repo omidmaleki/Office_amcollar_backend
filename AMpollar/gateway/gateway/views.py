@@ -8,10 +8,7 @@ import time
 OWNER_SERVICE = "http://owner:8000"
 PET_SERVICE = "http://pet:8000"
 COLLAR_SERVICE = "http://collar:8000"
-# ORDER_SERVICE = "http://order:8000"
-# PAYMENT_SERVICE = "http://payment:8000"
 SALE_SERVICE = "http://sale:8000"
-NOTIFICATION_SERVICE = "http://notification:8000"
 SMS_SERVICE = "http://sms:8000"
 AUTH_SERVICE = "http://auth:8000"
 VET_SERVICE = "http://vet:8000"
@@ -120,10 +117,6 @@ class OrderProxy(APIView):
 
 # class PaymentProxy(BaseProxy):
 #     SERVICE_URL = f"{PAYMENT_SERVICE}/payments/"
-
-
-class NotificationProxy(BaseProxy):
-    SERVICE_URL = f"{NOTIFICATION_SERVICE}/notifications/"
 
 class VetNewOrderProxyView(APIView):
     """

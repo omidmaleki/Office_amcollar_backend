@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.urls import path, re_path
 from .views import (
     OwnerProxy, PetProxy, CollarProxy, OrderProxy,
-    NotificationProxy, sms_proxy, auth_proxy,
+    sms_proxy, auth_proxy,
     VetRegisterProxy, RegisterOwnerPetInfoView, VetFormsProxy,
     MedicalInfoProxy, ThresholdProxy, PaymentProxy
 )
@@ -29,9 +29,6 @@ urlpatterns = [
 
     # Payment service
     # path("payments/", PaymentProxy.as_view()),
-
-    # Notifications
-    path("notifications/", NotificationProxy.as_view()),
 
     # SMS service
     path("sms/", sms_proxy),
