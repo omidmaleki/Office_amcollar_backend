@@ -45,12 +45,28 @@ class ThresholdProxy(BaseProxy):
 class CollarProxy(BaseProxy):
     SERVICE_URL = f"{COLLAR_SERVICE}/products/"
 
+class PaymentProxy(APIView):
+    def post(self, request):
+        data = request.data
+        required_fields = ["owner_id", "collar_id", "vet_id", "pet_id"]
+        missing = [f for f in required_fields if f not in data]
+        if missing:
+            return Response({"error": f"Missing fields: {missing}"}, status=400)
+
+        try:
+            res = requests.post(f"{SALE_SERVICE}/payments/create/", json=data, timeout=10)
+            # بدون raise_for_status، فقط پاسخ Sale Service را Forward می‌کنیم
+            return Response(res.json(), status=res.status_code)
+        except requests.exceptions.RequestException as e:
+            # اگر Sale Service در دسترس نباشد
+            return Response({"error": f"Sale service unreachable: {str(e)}"}, status=503)
+
 
 class OrderProxy(APIView):
     def get(self, request):
         try:
-            # 1) دریافت لیست سفارش‌ها از سرویس واحد sale-service
-            orders_res = requests.get(f"{SALE_SERVICE}/order/")
+            # 1) دریافت لیست سفارش‌ها از Sale Service
+            orders_res = requests.get(f"{SALE_SERVICE}/orders/")
             orders_res.raise_for_status()
             orders = orders_res.json()
 
@@ -96,6 +112,8 @@ class OrderProxy(APIView):
 
             return Response(result)
 
+        except requests.exceptions.RequestException as e:
+            return Response({"error": f"Service unreachable: {str(e)}"}, status=503)
         except Exception as e:
             return Response({"error": str(e)}, status=500)
 

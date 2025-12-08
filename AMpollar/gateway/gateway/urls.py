@@ -4,9 +4,8 @@ from .views import (
     OwnerProxy, PetProxy, CollarProxy, OrderProxy,
     NotificationProxy, sms_proxy, auth_proxy,
     VetRegisterProxy, RegisterOwnerPetInfoView, VetFormsProxy,
-    MedicalInfoProxy, ThresholdProxy, VetNewOrderProxyView
+    MedicalInfoProxy, ThresholdProxy, PaymentProxy
 )
-
 urlpatterns = [
 
     path("admin/", admin.site.urls),
@@ -24,8 +23,8 @@ urlpatterns = [
     path("collars/", CollarProxy.as_view()),
 
     # Order service
+    path('payments/create/', PaymentProxy.as_view(), name='proxy-create-payment'),
     path("orders/", OrderProxy.as_view(), name="proxy-orders"),
-    path("orders/vet-new-order/", VetNewOrderProxyView.as_view(), name="vet-new-orders"),
 
 
     # Payment service
@@ -51,3 +50,4 @@ urlpatterns = [
     # Register owner + pet (combined)
     path("register/", RegisterOwnerPetInfoView.as_view()),
 ]
+
