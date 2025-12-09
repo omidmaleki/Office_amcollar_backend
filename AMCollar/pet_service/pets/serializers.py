@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Pet, Threshold
+from .models import Pet
 
 class PetSerializer(serializers.ModelSerializer):
     class Meta:
@@ -7,7 +7,24 @@ class PetSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class ThresholdSerializer(serializers.ModelSerializer):
+class PetInfo2Serializer(serializers.ModelSerializer):
     class Meta:
-        model = Threshold
-        fields = "__all__"
+        model = Pet
+        # فقط فیلدهایی که میخوای برای اطلاعات ثانویه آپدیت بشن
+        fields = [
+            'id',
+            'name',
+            'owner_id',
+            'vet_id',
+            'collar_id',
+            'species',
+            'age',
+            'sex',
+            'pet_image',
+            'race',
+            'weight',
+            'neutered',
+            'surgery_history',
+            'annual_vaccine_date',
+        ]
+        read_only_fields = ['id', 'owner_id', 'vet_id', 'collar_id']  # جلوگیری از تغییر owner/collar/vet

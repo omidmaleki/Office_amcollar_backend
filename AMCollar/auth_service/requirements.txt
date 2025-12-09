@@ -5,3 +5,4 @@ pyjwt
 requests
 python-dotenv
 psycopg2-binary>=2.9
+gunicorn>=20.1.0

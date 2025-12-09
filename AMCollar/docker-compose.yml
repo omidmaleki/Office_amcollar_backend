@@ -2,26 +2,28 @@ version: "3.8"
 
 services:
 
+  # ---------------- DATABASE ----------------
   db:
     image: postgres:15
-    container_name: db
+    container_name: amcollar-db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
+      POSTGRES_DB: amcollar
     ports:
       - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
       - ./init-dbs.sql:/docker-entrypoint-initdb.d/init-dbs.sql
-
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       retries: 5
 
+  # ---------------- ZOOKEEPER & KAFKA ----------------
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
-    container_name: zookeeper
+    container_name: amcollar-zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
     ports:
@@ -29,7 +31,7 @@ services:
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
-    container_name: kafka
+    container_name: amcollar-kafka
     depends_on:
       - zookeeper
     environment:
@@ -42,15 +44,13 @@ services:
     ports:
       - "9092:9092"
     healthcheck:
-      test: [ "CMD", "kafka-topics", "--bootstrap-server", "kafka:9092", "--list" ]
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "kafka:9092", "--list"]
       interval: 5s
       retries: 10
 
-
-  # -------------------- Kafka UI ---------------------
   kafka-ui:
     image: provectuslabs/kafka-ui
-    container_name: kafka-ui
+    container_name: amcollar-kafka-ui
     ports:
       - "8085:8080"
     environment:
@@ -71,7 +71,7 @@ services:
         sleep 2;
         python manage.py makemigrations --no-input &&
         python manage.py migrate --no-input &&
-        python manage.py runserver 0.0.0.0:8000
+        gunicorn auth_service.wsgi:application --bind 0.0.0.0:8000
       "
     ports:
       - "8003:8000"
@@ -89,7 +89,7 @@ services:
         sleep 2;
         python manage.py makemigrations --no-input &&
         python manage.py migrate --no-input &&
-        python manage.py runserver 0.0.0.0:8000
+        gunicorn owner_service.wsgi:application --bind 0.0.0.0:8000
       "
     ports:
       - "8001:8000"
@@ -107,11 +107,12 @@ services:
         sleep 2;
         python manage.py makemigrations --no-input &&
         python manage.py migrate --no-input &&
-        python manage.py runserver 0.0.0.0:8000
+        gunicorn pet_service.wsgi:application --bind 0.0.0.0:8000
       "
     ports:
       - "8002:8000"
-  # ---------------- PRODUCT SERVICE ----------------
+
+  # ---------------- COLLAR SERVICE ----------------
   collar:
     build: ./collar_service
     container_name: amcollar-collar
@@ -124,7 +125,7 @@ services:
         sleep 2;
         python manage.py makemigrations --no-input &&
         python manage.py migrate --no-input &&
-        python manage.py runserver 0.0.0.0:8000
+        gunicorn collar_service.wsgi:application --bind 0.0.0.0:8000
       "
     ports:
       - "8007:8000"
@@ -144,12 +145,10 @@ services:
         sleep 8;
         python manage.py makemigrations --no-input &&
         python manage.py migrate --no-input &&
-        python manage.py runserver 0.0.0.0:8000
+        gunicorn sale_service.wsgi:application --bind 0.0.0.0:8000
       "
     ports:
       - "8008:8000"
-
-  # ---------------- NOTIFICATION SERVICE ----------------
 
   # ---------------- SMS SERVICE ----------------
   sms:
@@ -160,9 +159,9 @@ services:
     command: >
       sh -c "
         sleep 2;
-        python manage.py makemigrations &&
-        python manage.py migrate &&
-        python manage.py runserver 0.0.0.0:8000
+        python manage.py makemigrations --no-input &&
+        python manage.py migrate --no-input &&
+        gunicorn sms_service.wsgi:application --bind 0.0.0.0:8000
       "
     ports:
       - "8004:8000"
@@ -179,12 +178,12 @@ services:
         sleep 10;
         python manage.py makemigrations --no-input &&
         python manage.py migrate --no-input &&
-        python manage.py runserver 0.0.0.0:8000
+        gunicorn vet_service.wsgi:application --bind 0.0.0.0:8000
       "
     ports:
       - "8005:8000"
 
-
+  # ---------------- GATEWAY ----------------
   gateway:
     build: ./gateway
     container_name: amcollar-gateway
@@ -198,9 +197,13 @@ services:
       - vet
     ports:
       - "8000:8000"
+    command: >
+      sh -c "
+        sleep 5 &&
+        gunicorn gateway.wsgi:application --bind 0.0.0.0:8000
+      "
 
-
-  # ---------------- TCP CLIENT ----------------
+  # ---------------- TCP SERVICE (optional) ----------------
   tcp_service:
     build: ./tcp_service
     container_name: tcp-service
@@ -218,31 +221,6 @@ services:
         python -u /app/tcp_server.py
       "
     restart: always
-    healthcheck:
-      test: ["CMD", "bash", "-c", "echo > /dev/tcp/localhost/9001"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-
-  gyro_service:
-    build: ./gyro_service
-    container_name: gyro-service
-    depends_on:
-      kafka:
-        condition: service_healthy
-    ports:
-      - "9007:9001"
-    environment:
-      KAFKA_BOOTSTRAP: kafka:9092
-      KAFKA_TOPIC: gyro_events
-    command: >
-      sh -c "
-        sleep 3;
-        python -u /app/consumer.py
-      "
-    restart: always
 
 volumes:
   db_data:
-
-

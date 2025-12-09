@@ -3,9 +3,16 @@ from rest_framework.views import APIView
 from .models import Owner
 from .serializers import OwnerSerializer
 from rest_framework.response import Response
+from rest_framework.decorators import api_view
 from rest_framework import status
 import requests
 from django.db import IntegrityError, transaction
+
+
+
+@api_view(["GET"])
+def health(request):
+    return Response({"status": "ok"}, status=200)
 
 
 class OwnerViewSet(viewsets.ModelViewSet):

@@ -20,27 +20,23 @@ def listen_order_events():
 
     for message in consumer:
         data = message.value
-        print("[VetService] Received event:", data)
 
         try:
             with transaction.atomic():
                 VetForm.objects.create(
                     vet_id=Vet.objects.get(id=data["vet_id"]),
-
                     owner_id=data["owner_id"],
                     pet_id=data["pet_id"],
                     purchase_id=data["purchase_id"],
                     status=data.get("status", "pending"),
 
-                    # Pet Info
                     pet_name=data.get("pet_name"),
                     pet_age=data.get("pet_age"),
                     pet_race=data.get("pet_race"),
                     pet_image=data.get("pet_image"),
 
-                    # Threshold
                     body_temperature=data.get("body_temperature"),
-                    hrv=data.get("hrv")
+                    hrv=data.get("hrv"),
                 )
 
                 print(f"[VetService] VetForm created for purchase_id {data['purchase_id']}")

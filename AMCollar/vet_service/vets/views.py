@@ -16,7 +16,6 @@ THRESHOLD_SERVICE = "http://threshold:8000"
 class CreateVetFormFromPet(APIView):
 
     def post(self, request, pet_id):
-
         vet_id = request.data.get("vet_id")
         owner_id = request.data.get("owner_id")
         purchase_id = request.data.get("purchase_id")
@@ -34,26 +33,23 @@ class CreateVetFormFromPet(APIView):
 
         # ----- Get Threshold -----
         try:
-            th_resp = requests.get(f"{THRESHOLD_SERVICE}/thresholds/by-pet/{pet_id}/")
-            th_resp.raise_for_status()
-            threshold = th_resp.json()
+            t_resp = requests.get(f"{THRESHOLD_SERVICE}/thresholds/by-pet/{pet_id}/")
+            t_resp.raise_for_status()
+            threshold = t_resp.json()
         except:
             threshold = {}
 
-        # ----- Create VetForm -----
         vet_form_data = {
             "vet_id": vet_id,
             "owner_id": owner_id,
             "pet_id": pet_id,
             "purchase_id": purchase_id,
 
-            # Pet info
             "pet_name": pet["name"],
             "pet_age": pet["age"],
             "pet_race": pet["race"],
             "pet_image": pet.get("pet_image"),
 
-            # Threshold
             "body_temperature": threshold.get("body_temperature"),
             "hrv": threshold.get("hrv"),
         }
@@ -65,6 +61,7 @@ class CreateVetFormFromPet(APIView):
         return Response(serializer.data, status=201)
 
 
+
 class VetViewSet(viewsets.ModelViewSet):
     queryset = Vet.objects.all()
     serializer_class = VetSerializer
@@ -74,14 +71,13 @@ class VetViewSet(viewsets.ModelViewSet):
 class VetFormViewSet(viewsets.ModelViewSet):
     queryset = VetForm.objects.all()
     serializer_class = VetFormSerializer
+
     http_method_names = ["get", "patch", "put"]
 
     def update(self, request, *args, **kwargs):
-        """برای PUT کامل"""
         return self._update_instance(request, partial=False)
 
     def partial_update(self, request, *args, **kwargs):
-        """برای PATCH جزئی"""
         return self._update_instance(request, partial=True)
 
     def _update_instance(self, request, partial=False):
@@ -92,12 +88,10 @@ class VetFormViewSet(viewsets.ModelViewSet):
         with transaction.atomic():
             self.perform_update(serializer)
 
-            # --- اگر status به completed رسید، event بفرست ---
             if serializer.instance.status == "completed":
                 send_threshold_update_event(serializer.instance)
 
         return Response(serializer.data)
-
 
 class VetListView(APIView):
     def get(self, request):

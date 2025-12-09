@@ -2,9 +2,9 @@ from django.contrib import admin
 from django.urls import path, re_path
 from .views import (
     OwnerProxy, PetProxy, CollarProxy, OrderProxy,
-    sms_proxy, auth_proxy,
+    sms_proxy, auth_proxy,WifiCollarStatusProxy,
     VetRegisterProxy, RegisterOwnerPetInfoView, VetFormsProxy,
-    MedicalInfoProxy, ThresholdProxy, PaymentProxy
+    MedicalInfoProxy, ThresholdProxy, PaymentProxy, ThresholdDetailProxy, PetInfo2Proxy
 )
 urlpatterns = [
 
@@ -14,12 +14,14 @@ urlpatterns = [
     path("owners/", OwnerProxy.as_view()),
 
     # Pet service
+    path('pets/info2/<int:owner_id>/', PetInfo2Proxy.as_view(), name='pet_info2_proxy'),
     path("pets/", PetProxy.as_view()),
 
     # threshold service
     path("thresholds/", ThresholdProxy.as_view()),
 
-    # Product service
+    # Collars service
+    path("collars/status/", WifiCollarStatusProxy.as_view(), name="wifi_collar_status_proxy"),
     path("collars/", CollarProxy.as_view()),
 
     # Order service
@@ -42,6 +44,9 @@ urlpatterns = [
     path("vet/vet-forms/", VetFormsProxy.as_view()),
     path("vet/medical-info/", MedicalInfoProxy.as_view()),
     path("vet/vet-forms/<int:pk>/", VetFormsProxy.as_view(), name="vetform-detail"),
+
+    path("thresholds/", ThresholdProxy.as_view(), name="gw_thresholds"),
+    path("thresholds/<int:pk>/", ThresholdDetailProxy.as_view(), name="gw_threshold_detail"),
 
 
     # Register owner + pet (combined)

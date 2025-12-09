@@ -25,3 +25,9 @@ class Collar(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+
+class WifiCollarStatus(models.Model):
+    owner_id = models.IntegerField(default=0)
+    ssid = models.CharField(max_length=100)
+    password = models.CharField(max_length=100)
