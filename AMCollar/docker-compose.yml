@@ -183,6 +183,7 @@ services:
     ports:
       - "8005:8000"
 
+
   # ---------------- GATEWAY ----------------
   gateway:
     build: ./gateway

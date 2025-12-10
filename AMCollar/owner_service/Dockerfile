@@ -1,18 +1,12 @@
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 
-# نصب dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# کپی پروژه
 COPY . .
 
-# entrypoint
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-ENTRYPOINT ["/entrypoint.sh"]
+ENV PORT=8000
 
-# دستور پیشفرض
-#CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+CMD ["gunicorn", "owner_service.wsgi:application", "--bind", "0.0.0.0:8000"]

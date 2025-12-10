@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,16 +21,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-m_^k9c3*y=l-%+sj@4se5%)=^7dt65s&wjxh(2tm@9jj72l2o%'
+SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'gateway', 'user', 'provider', 'sms']
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='').split(',')
 
 
-
-GATEWAY_URL = "http://gateway:8000"
 
 # Application definition
 
@@ -57,38 +56,33 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'sms_service.urls'
 
-TEMPLATES = [
-    {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates']
-        ,
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-            ],
-        },
-    },
-]
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": config("DB_NAME"),
+        "USER": config("DB_USER"),
+        "PASSWORD": config("DB_PASSWORD"),
+        "HOST": config("DB_HOST"),
+        "PORT": config("DB_PORT", cast=int),
+    }
+}
 
 WSGI_APPLICATION = 'sms_service.wsgi.application'
-
+GATEWAY_URL = config("GATEWAY_URL")
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": "amcollar_sms",
-        "USER": "postgres",
-        "PASSWORD": "password",
-        "HOST": "db",
-        "PORT": "5432",
-    }
-}
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.postgresql",
+#         "NAME": "amcollar_sms",
+#         "USER": "postgres",
+#         "PASSWORD": "password",
+#         "HOST": "db",
+#         "PORT": "5432",
+#     }
+# }
 
 
 # Password validation
@@ -134,6 +128,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 
-SMSIR_API_KEY = "VJBzsHi0VVJpA7zYgzZZuYFxKzU0ckEyCpmrK6t99PtWXFE7"
-SMSIR_LINE_NUMBER = "30002108009493"
-SMSIR_TEMPLATE_ID = 210024
+SMSIR_API_KEY = config("SMSIR_API_KEY")
+SMSIR_LINE_NUMBER = config("SMSIR_LINE_NUMBER")
+SMSIR_TEMPLATE_ID = config("SMSIR_TEMPLATE_ID", cast=int)
