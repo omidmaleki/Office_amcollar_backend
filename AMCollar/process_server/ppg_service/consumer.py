@@ -5,14 +5,34 @@ from HR_process import compute_hr
 from SPO2_process import compute_spo2
 
 KAFKA_SERVERS = "kafka:9092"
-FS = 150
-SEND_COUNT = 10  # تعداد batch برای HR و SpO2
-HRV_COUNT = 30   # تعداد HR برای محاسبه HRV
 
-# بافرها
+FS = 150              # Sampling rate
+SEND_COUNT = 10   # چند batch برای محاسبه HR و SpO2
+HRV_COUNT = 30         # چند HR برای محاسبه HRV
+
+# Buffers
 ir_buffer = []
 red_buffer = []
 hr_list = []
+
+EXPECTED_SAMPLES = None   # تعداد نمونه واقعی هر batch را بعداً کشف می‌کنیم
+
+
+def normalize_kafka_message(value):
+    """
+    این تابع تضمین می‌کند که:
+    - اگر Kafka لیست ارسال کرد، همان را برمی‌گرداند
+    - اگر پیام تکی ارسال شد، تبدیل به لیست می‌شود
+    """
+
+    if isinstance(value, list):
+        return value
+
+    if isinstance(value, dict):
+        return [value]
+
+    raise ValueError(f"Invalid Kafka message format: {value}")
+
 
 def start_consumer():
     consumer = KafkaConsumer(
@@ -25,147 +45,72 @@ def start_consumer():
 
     print("[PPG] Consumer started...")
 
-    global ir_buffer, red_buffer, hr_list
+    global ir_buffer, red_buffer, hr_list, EXPECTED_SAMPLES
 
     for message in consumer:
-        batch_msgs = message.value  # اینجا batch از Kafka دریافت می‌شود
+
+        batch_msgs = normalize_kafka_message(message.value)
+
+        # Debug: Print batch info
+        print(f"\n📥 Received Kafka batch with {len(batch_msgs)} items")
 
         for msg in batch_msgs:
+
+            # payload همیشه string است → باید json شود
             payload = json.loads(msg["payload"])
+
             ir_samples = payload["samples"]["ir"]
             red_samples = payload["samples"]["red"]
+
+            # Detect expected number of samples per message (only first time)
+            if EXPECTED_SAMPLES is None:
+                EXPECTED_SAMPLES = len(ir_samples)
+                print(f"🔍 Detected {EXPECTED_SAMPLES} samples per message")
 
             ir_buffer.extend(ir_samples)
             red_buffer.extend(red_samples)
 
-        if len(ir_buffer) >= SEND_COUNT * 100:  # فرض هر batch 100 نمونه
+        print(f"📊 buffers → IR: {len(ir_buffer)}, RED: {len(red_buffer)}")
+
+        # اگر به حد لازم رسیدیم پردازش کنیم
+        if EXPECTED_SAMPLES and len(ir_buffer) >= SEND_COUNT * EXPECTED_SAMPLES:
+
             ir_array = np.array(ir_buffer, dtype=float)
             red_array = np.array(red_buffer, dtype=float)
 
-            hr = compute_hr(ir_array, FS)
-            spo2 = compute_spo2(ir_array, red_array)
+            print(f"⚙️ Processing {len(ir_array)} samples...")
 
-            if hr:
-                print(f"❤️ Heart Rate: {hr}")
-                hr_list.append(hr)
-            if spo2:
-                print(f"SPO2: {spo2}")
+            # HR
+            try:
+                hr = compute_hr(ir_array, FS)
+                if hr:
+                    print(f"❤️ HR: {hr}")
+                    hr_list.append(hr)
+                else:
+                    print("⚠️ HR: No valid HR detected")
+            except Exception as e:
+                print(f"❌ HR error: {e}")
 
+            # SPO2
+            try:
+                spo2 = compute_spo2(ir_array, red_array)
+                if spo2:
+                    print(f"🩸 SPO2: {spo2}")
+                else:
+                    print("⚠️ SPO2: No valid SPO2 detected")
+            except Exception as e:
+                print(f"❌ SPO2 error: {e}")
+
+            # Clear buffers
             ir_buffer.clear()
             red_buffer.clear()
 
+        # HRV calculation
         if len(hr_list) >= HRV_COUNT:
-            hrv = np.mean(hr_list)
-            print(f"💓 HRV (average over {HRV_COUNT} HRs): {hrv}")
+            hrv = float(np.mean(hr_list))
+            print(f"💓 HRV (avg of {HRV_COUNT} HR values): {hrv}")
             hr_list.clear()
+
 
 if __name__ == "__main__":
     start_consumer()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# from kafka import KafkaConsumer
-# import json
-# import numpy as np
-# from HR_process import compute_hr
-# from SPO2_process import compute_spo2
-#
-# KAFKA_SERVERS = "kafka:9092"
-# SEND_COUNT = 10
-# HRV_COUNT = 30
-# FS = 150
-#
-#
-# ir_buffer = []
-# ir_counter = 0
-#
-# red_buffer = []
-# red_counter = 0
-#
-#
-# hr_list = []
-#
-# def start_consumer():
-#     consumer = KafkaConsumer(
-#         "ppg",
-#         bootstrap_servers=KAFKA_SERVERS,
-#         value_deserializer=lambda v: json.loads(v.decode("utf-8")),
-#         auto_offset_reset="latest",
-#     )
-#
-#     print("[PPG] Consumer started...")
-#
-#     global ir_buffer, ir_counter, hr_list, red_buffer, red_counter
-#
-#     for message in consumer:
-#         data = message.value
-#
-#         ir_samples = data["samples"]["ir"]
-#         ir_buffer.extend(ir_samples)
-#         ir_counter += 1
-#
-#         red_samples = data["samples"]["red"]
-#         red_buffer.extend(red_samples)
-#         red_counter += 1
-#
-#         if ir_counter >= SEND_COUNT:
-#             ppg_array = np.array(ir_buffer, dtype=float)
-#             hr = compute_hr(ppg_array, FS)
-#
-#             if hr:
-#                 print(f"❤️ Heart Rate (after {SEND_COUNT} batches):", hr)
-#                 hr_list.append(hr)
-#
-#             red_array = np.array(red_buffer, dtype=float)
-#             ir_array = np.array(ir_buffer, dtype=float)
-#             spo2 = compute_spo2(ir_array, red_array)
-#
-#             if spo2:
-#                 print(f"SPO2 after {SEND_COUNT} batches:", spo2)
-#
-#             ir_buffer.clear()
-#             ir_counter = 0
-#
-#             red_buffer.clear()
-#             red_counter = 0
-#
-#         if len(hr_list) >= HRV_COUNT:
-#             hrv = np.mean(hr_list)
-#             print(f"💓 HRV (average over {HRV_COUNT} HRs):", hrv)
-#             hr_list.clear()
-#
-#
-# if __name__ == "__main__":
-#     start_consumer()

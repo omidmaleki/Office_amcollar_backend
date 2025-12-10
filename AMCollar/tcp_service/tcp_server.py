@@ -97,25 +97,29 @@ def kafka_worker(port):
         except queue.Empty:
             pass  # میریم سراغ چک‌کردن زمان
 
-        # اگر batch پر شد
+        # اگر batch پر شد → پیام‌ها را تک‌تک بفرست
         if len(batch) >= BATCH_SIZE:
             try:
-                producer.send(topic, batch)
+                for item in batch:
+                    producer.send(topic, item)
                 producer.flush()
-                print(f"[Kafka] Sent BATCH of {len(batch)} messages → topic: {topic}", flush=True)
+                print(f"[Kafka] Sent {len(batch)} messages → topic: {topic}", flush=True)
             except Exception as e:
                 print(f"[Kafka] ERROR sending batch: {e}", flush=True)
+
             batch.clear()
             last_send_time = time.time()
 
-        # اگر نیم ثانیه گذشت و batch خالی نیست → همین الان بفرست
+        # اگر نیم ثانیه گذشت و batch خالی نیست → فلش کن
         if batch and (time.time() - last_send_time > 0.5):
             try:
-                producer.send(topic, batch)
+                for item in batch:
+                    producer.send(topic, item)
                 producer.flush()
                 print(f"[Kafka] Sent {len(batch)} messages (timeout flush) → topic: {topic}", flush=True)
             except Exception as e:
                 print(f"[Kafka] ERROR sending on timeout: {e}", flush=True)
+
             batch.clear()
             last_send_time = time.time()
 

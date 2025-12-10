@@ -1,5 +1,5 @@
 import numpy as np
-
+#spo2
 def compute_spo2(red_signal, ir_signal):
     DC_red = np.mean(red_signal)
     AC_red = np.max(red_signal) - np.min(red_signal)

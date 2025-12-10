@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.signal import butter, filtfilt
-from reader import load_ppg
+# hr_process
 # -----------------------------
 # 1. Band-pass filter (0.5 - 4 Hz)
 # -----------------------------
