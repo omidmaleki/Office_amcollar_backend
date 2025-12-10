@@ -11,22 +11,29 @@ producer = None
 # ----------------- PORT → TOPIC MAP -----------------
 PORT_TOPIC_MAP = {
     9001: "gyro_events",
-    9002: "gyro",
+    9002: "ppg",
     9003: "raw_events"
 }
 
 # ----------------- INITIALIZE KAFKA -----------------
 def init_kafka():
     global producer
-    try:
-        producer = KafkaProducer(
-            bootstrap_servers=KAFKA_BOOTSTRAP,
-            value_serializer=lambda v: json.dumps(v).encode("utf-8")
-        )
-        print(f"[Kafka] Connected to {KAFKA_BOOTSTRAP}", flush=True)
-    except Exception as e:
-        print("[Kafka] Connection error:", e, flush=True)
-        producer = None
+    attempts = 20
+
+    for i in range(attempts):
+        try:
+            producer = KafkaProducer(
+                bootstrap_servers=KAFKA_BOOTSTRAP,
+                value_serializer=lambda v: json.dumps(v).encode("utf-8")
+            )
+            print(f"[Kafka] Connected to {KAFKA_BOOTSTRAP}")
+            return
+        except Exception as e:
+            print(f"[Kafka] Connection failed ({i+1}/{attempts}). Retrying...", e, flush=True)
+            time.sleep(2)
+
+    print("[Kafka] ERROR: Could not connect to Kafka after retries!", flush=True)
+    producer = None
 
 # ----------------- TCP CLIENT HANDLER -----------------
 def handle_client(conn, addr, port):
