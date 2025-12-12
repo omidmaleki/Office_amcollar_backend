@@ -20,22 +20,23 @@ services:
       retries: 5
     restart: always
 
-  # ---------------- ZOOKEEPER & KAFKA ----------------
+  # ---------------- ZOOKEEPER ----------------
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: amcollar-zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
-    ports:
-      - "2181:2181"
     restart: always
 
+  # ---------------- KAFKA ----------------
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: amcollar-kafka
     depends_on:
-      zookeeper:
+      db:
         condition: service_healthy
+      zookeeper:
+        condition: service_started
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -52,16 +53,16 @@ services:
   kafka-ui:
     image: provectuslabs/kafka-ui
     container_name: amcollar-kafka-ui
-    environment:
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
-    ports:
-      - "8085:8080"
     depends_on:
       kafka:
         condition: service_healthy
+    ports:
+      - "8085:8080"
+    environment:
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
     restart: always
 
-  # ---------------- DJANGO SERVICES ----------------
+  # ---------------- AUTH SERVICE ----------------
   auth:
     build: ./auth_service
     container_name: amcollar-auth
@@ -75,32 +76,12 @@ services:
     command: >
       sh -c "
         sleep 5;
-        python manage.py makemigrations --no-input &&
         python manage.py migrate --no-input &&
         gunicorn auth_service.wsgi:application --bind 0.0.0.0:8000
       "
     restart: always
 
-  collar:
-    build: ./collar_service
-    container_name: amcollar-collar
-    env_file:
-      - ./collar_service/.env
-    depends_on:
-      db:
-        condition: service_healthy
-    ports:
-      - "8007:8000"
-    command: >
-      sh -c "
-        sleep 5;
-        python manage.py makemigrations --no-input &&
-        python manage.py migrate --no-input &&
-        gunicorn collar_service.wsgi:application --bind 0.0.0.0:8000
-      "
-    restart: always
-
-
+  # ---------------- OWNER ----------------
   owner:
     build: ./owner_service
     container_name: amcollar-owner
@@ -114,13 +95,12 @@ services:
     command: >
       sh -c "
         sleep 5;
-        python manage.py makemigrations --no-input &&
         python manage.py migrate --no-input &&
         gunicorn owner_service.wsgi:application --bind 0.0.0.0:8000
       "
     restart: always
 
-
+  # ---------------- PET ----------------
   pet:
     build: ./pet_service
     container_name: amcollar-pet
@@ -134,12 +114,31 @@ services:
     command: >
       sh -c "
         sleep 5;
-        python manage.py makemigrations --no-input &&
         python manage.py migrate --no-input &&
         gunicorn pet_service.wsgi:application --bind 0.0.0.0:8000
       "
     restart: always
 
+  # ---------------- COLLAR ----------------
+  collar:
+    build: ./collar_service
+    container_name: amcollar-collar
+    env_file:
+      - ./collar_service/.env
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8007:8000"
+    command: >
+      sh -c "
+        sleep 5;
+        python manage.py migrate --no-input &&
+        gunicorn collar_service.wsgi:application --bind 0.0.0.0:8000
+      "
+    restart: always
+
+  # ---------------- SMS ----------------
   sms:
     build: ./sms_service
     container_name: amcollar-sms
@@ -153,33 +152,12 @@ services:
     command: >
       sh -c "
         sleep 5;
-        python manage.py makemigrations --no-input &&
         python manage.py migrate --no-input &&
         gunicorn sms_service.wsgi:application --bind 0.0.0.0:8000
       "
     restart: always
 
-  vet:
-    build: ./vet_service
-    container_name: amcollar-vet
-    env_file:
-      - ./vet_service/.env
-    depends_on:
-      db:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    ports:
-      - "8005:8000"
-    command: >
-      sh -c "
-        sleep 10;
-        python manage.py makemigrations --no-input &&
-        python manage.py migrate --no-input &&
-        gunicorn vet_service.wsgi:application --bind 0.0.0.0:8000
-      "
-    restart: always
-
+  # ---------------- SALE ----------------
   sale:
     build: ./sale_service
     container_name: amcollar-sale
@@ -194,36 +172,64 @@ services:
       - "8008:8000"
     command: >
       sh -c "
-        sleep 8;
-        python manage.py makemigrations --no-input &&
+        sleep 10;
         python manage.py migrate --no-input &&
         gunicorn sale_service.wsgi:application --bind 0.0.0.0:8000
       "
     restart: always
 
+  # ---------------- VET ----------------
+  vet:
+    build: ./vet_service
+    container_name: amcollar-vet
+    env_file:
+      - ./vet_service/.env
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8005:8000"
+    command: >
+      sh -c "
+        sleep 12;
+        python manage.py migrate --no-input &&
+        gunicorn vet_service.wsgi:application --bind 0.0.0.0:8000
+      "
+    restart: always
+
+  # ---------------- GATEWAY ----------------
   gateway:
     build: ./gateway
     container_name: amcollar-gateway
     env_file:
       - ./gateway/.env
     depends_on:
-      - auth
-      - owner
-      - pet
-      - collar
-      - sale
-      - sms
-      - vet
+      auth:
+        condition: service_started
+      owner:
+        condition: service_started
+      pet:
+        condition: service_started
+      collar:
+        condition: service_started
+      sale:
+        condition: service_started
+      sms:
+        condition: service_started
+      vet:
+        condition: service_started
     ports:
       - "8000:8000"
     command: >
       sh -c "
-        sleep 5 &&
+        sleep 5;
         gunicorn gateway.wsgi:application --bind 0.0.0.0:8000
       "
     restart: always
 
-  # ---------------- TCP & PROCESS SERVICES ----------------
+  # ---------------- TCP SERVICE ----------------
   tcp_service:
     build: ./tcp_service
     container_name: tcp-service
@@ -237,6 +243,7 @@ services:
     command: python -u /app/tcp_server.py
     restart: always
 
+  # ---------------- PROCESSES ----------------
   gyro_service:
     build: ./process_server/gyro_service
     container_name: gyro-service
