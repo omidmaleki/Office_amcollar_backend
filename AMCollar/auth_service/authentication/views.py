@@ -11,6 +11,10 @@ from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
 import os
 from rest_framework.permissions import AllowAny
+from rest_framework import status
+from decouple import config
+import logging
+
 
 GATEWAY_SMS_URL = os.environ.get("GATEWAY_URL", "http://gateway:8000") + "/sms/"
 
@@ -104,25 +108,50 @@ class BaseVerifyOtpView(APIView):
 
 
 
+logger = logging.getLogger(__name__)
+
+SMS_SERVICE_URL = config(
+    "SMS_SERVICE_URL",
+    default="http://sms:8000"
+)
+
+OTP_EXPIRE_MINUTES = config(
+    "OTP_EXPIRE_MINUTES",
+    default=5,
+    cast=int
+)
+
+
 class OwnerSendOtpView(APIView):
     permission_classes = []
 
     def post(self, request):
         phone = request.data.get("phone")
         if not phone:
-            return Response({"success": False, "message": "phone required"}, status=400)
+            return Response(
+                {"success": False, "message": "phone required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        code = generate_code()  # مثلا 4 رقمی
+        code = generate_code()
 
         # ارسال SMS
         try:
-            resp = requests.post(GATEWAY_SMS_URL, json={"phone": phone, "code": code})
+            logger.info(f"Sending OTP to SMS service for phone={phone}")
+            resp = requests.post(
+                f"{SMS_SERVICE_URL}/sms/",
+                json={"phone": phone, "code": code},
+                timeout=5
+            )
             resp.raise_for_status()
         except requests.exceptions.RequestException as e:
-            return Response({"success": False, "message": str(e)}, status=500)
+            logger.error(f"SMS service error: {e}")
+            return Response(
+                {"success": False, "message": "SMS service unavailable"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
 
-        # ذخیره OTP در دیتابیس
-        expires_at = timezone.now() + timedelta(minutes=5)  # ۵ دقیقه اعتبار
+        expires_at = timezone.now() + timedelta(minutes=OTP_EXPIRE_MINUTES)
         OTP.objects.create(
             phone=phone,
             role="owner",
@@ -130,11 +159,10 @@ class OwnerSendOtpView(APIView):
             expires_at=expires_at
         )
 
-        return Response({
-            "success": True,
-            "code": code,
-            "sms_response": resp.json()
-        })
+        return Response(
+            {"success": True},
+            status=status.HTTP_200_OK
+        )
 
 
 class OwnerVerifyOtpView(APIView):
