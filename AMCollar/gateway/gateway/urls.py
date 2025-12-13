@@ -20,6 +20,9 @@ urlpatterns = [
     # threshold service
     path("thresholds/", ThresholdProxy.as_view()),
 
+    # gps
+    # path('locations/', include('locations.urls')),
+
     # Collars service
     path("collars/status/", WifiCollarStatusProxy.as_view(), name="wifi_collar_status_proxy"),
     path("collars/", CollarProxy.as_view()),
