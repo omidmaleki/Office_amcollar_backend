@@ -248,7 +248,7 @@ services:
       kafka:
         condition: service_healthy
     ports:
-      - "9008:9001"
+      - "9008:9002"
     environment:
       KAFKA_BOOTSTRAP: kafka:9092
       KAFKA_TOPIC: ppg
@@ -256,6 +256,24 @@ services:
       sh -c "
         sleep 3;
         python -u /app/consumer.py
+      "
+    restart: always
+
+  gps_service:
+    build: ./process_server/gps_service
+    container_name: gps-service
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "9009:9003"
+    environment:
+      KAFKA_BOOTSTRAP: kafka:9092
+      KAFKA_TOPIC: gps
+    command: >
+      sh -c "
+        sleep 3;
+        python -u /app/location/consumer.py
       "
     restart: always
 

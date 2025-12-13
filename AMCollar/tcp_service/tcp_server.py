@@ -13,7 +13,7 @@ KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP", "kafka:9092")
 PORT_TOPIC_MAP = {
     9001: "gyro_events",
     9002: "ppg",
-    9003: "raw_events"
+    9003: "gps"
 }
 
 # برای هر پورت یک صف داخلی
