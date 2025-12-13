@@ -1,40 +1,63 @@
-# gyro_process.py
 import numpy as np
 
+def compute_bmi(weight_kg, height_m):
+    return weight_kg / (height_m ** 2)
 
-def process_gyro_data(payload, weight_kg=70):
+
+def process_window(data_window, weight_kg, height_m, window_seconds):
     """
-    Process accelerometer + gyro data and return posture, activity level, calories.
+    data_window: list of sensor payloads over time window
     """
-    acc = np.array([payload["ACCx"], payload["ACCy"], payload["ACCz"]])
-    gyro = np.array([payload["Gx"], payload["Gy"], payload["Gz"]])
 
-    acc_mag = np.linalg.norm(acc)
-    gyro_mag = np.linalg.norm(gyro)
+    acc = np.array([[d["ACCx"], d["ACCy"], d["ACCz"]] for d in data_window])
+    gyro = np.array([[d["Gx"], d["Gy"], d["Gz"]] for d in data_window])
 
-    # Posture classification
-    if acc_mag < 9.9 and gyro_mag < 0.1:
+    acc_mag = np.linalg.norm(acc, axis=1)
+    gyro_mag = np.linalg.norm(gyro, axis=1)
+
+    acc_mean = acc_mag.mean()
+    acc_var = acc_mag.var()
+    gyro_mean = gyro_mag.mean()
+
+    # -------- Posture --------
+    if acc_mean < 9.9 and gyro_mean < 0.05:
         posture = "lying"
-    elif acc_mag < 10.5 and gyro_mag < 0.2:
+    elif acc_mean < 10.5:
         posture = "sitting"
     else:
         posture = "standing"
 
-    # Activity level
-    activity_level = abs(acc_mag - 9.8)
+    # -------- Activity Level --------
+    activity_intensity = acc_var
 
-    # Estimate calories (per second)
-    if posture == "lying":
-        MET = 1.0
-    elif posture == "sitting":
-        MET = 1.3
+    # -------- Behavior State --------
+    if activity_intensity < 0.02 and gyro_mean < 0.03:
+        behavior = "sleep"
+    elif activity_intensity < 0.1:
+        behavior = "rest"
+    elif activity_intensity < 0.5:
+        behavior = "active"
     else:
-        MET = 1.8 + activity_level * 5  # rough estimation
+        behavior = "highly_active"
 
-    calories = MET * weight_kg * (1 / 3600)
+    # -------- MET Assignment --------
+    MET_MAP = {
+        "sleep": 0.95,
+        "rest": 1.2,
+        "active": 2.5,
+        "highly_active": 4.5
+    }
+
+    MET = MET_MAP[behavior]
+
+    calories = MET * weight_kg * (window_seconds / 3600)
 
     return {
         "posture": posture,
-        "activity_level": float(round(activity_level, 2)),
-        "calories": float(round(calories, 4))
+        "behavior": behavior,
+        "activity_intensity": round(activity_intensity, 4),
+        "calories": round(calories, 4),
+        "BMI": round(compute_bmi(weight_kg, height_m), 2),
+        "sleep_time_sec": window_seconds if behavior == "sleep" else 0,
+        "activity_time_sec": window_seconds if behavior in ["active", "highly_active"] else 0
     }
