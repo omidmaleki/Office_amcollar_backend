@@ -13,7 +13,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - db_data:/var/lib/postgresql/data
-      - ./init-dbs.sql:/docker-entrypoint-initdb.d/init-dbs.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 5s
@@ -44,6 +43,8 @@ services:
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    volumes:
+      - kafka_data:/var/lib/kafka/data
     healthcheck:
       test: ["CMD", "kafka-topics", "--bootstrap-server", "kafka:9092", "--list"]
       interval: 10s
@@ -62,107 +63,71 @@ services:
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
     restart: always
 
-  # ---------------- AUTH SERVICE ----------------
+  # ---------------- MICROSERVICES ----------------
   auth:
     build: ./auth_service
     container_name: amcollar-auth
-    env_file:
-      - ./auth_service/.env
+    env_file: ./auth_service/.env
     depends_on:
       db:
         condition: service_healthy
     ports:
       - "8003:8000"
-    command: >
-      sh -c "
-        sleep 5;
-        python manage.py migrate --no-input &&
-        gunicorn auth_service.wsgi:application --bind 0.0.0.0:8000
-      "
+    command: gunicorn auth_service.wsgi:application --bind 0.0.0.0:8000
     restart: always
 
-  # ---------------- OWNER ----------------
   owner:
     build: ./owner_service
     container_name: amcollar-owner
-    env_file:
-      - ./owner_service/.env
+    env_file: ./owner_service/.env
     depends_on:
       db:
         condition: service_healthy
     ports:
       - "8001:8000"
-    command: >
-      sh -c "
-        sleep 5;
-        python manage.py migrate --no-input &&
-        gunicorn owner_service.wsgi:application --bind 0.0.0.0:8000
-      "
+    command: gunicorn owner_service.wsgi:application --bind 0.0.0.0:8000
     restart: always
 
-  # ---------------- PET ----------------
   pet:
     build: ./pet_service
     container_name: amcollar-pet
-    env_file:
-      - ./pet_service/.env
+    env_file: ./pet_service/.env
     depends_on:
       db:
         condition: service_healthy
     ports:
       - "8002:8000"
-    command: >
-      sh -c "
-        sleep 5;
-        python manage.py migrate --no-input &&
-        gunicorn pet_service.wsgi:application --bind 0.0.0.0:8000
-      "
+    command: gunicorn pet_service.wsgi:application --bind 0.0.0.0:8000
     restart: always
 
-  # ---------------- COLLAR ----------------
   collar:
     build: ./collar_service
     container_name: amcollar-collar
-    env_file:
-      - ./collar_service/.env
+    env_file: ./collar_service/.env
     depends_on:
       db:
         condition: service_healthy
     ports:
       - "8007:8000"
-    command: >
-      sh -c "
-        sleep 5;
-        python manage.py migrate --no-input &&
-        gunicorn collar_service.wsgi:application --bind 0.0.0.0:8000
-      "
+    command: gunicorn collar_service.wsgi:application --bind 0.0.0.0:8000
     restart: always
 
-  # ---------------- SMS ----------------
   sms:
     build: ./sms_service
     container_name: amcollar-sms
-    env_file:
-      - ./sms_service/.env
+    env_file: ./sms_service/.env
     depends_on:
       db:
         condition: service_healthy
     ports:
       - "8004:8000"
-    command: >
-      sh -c "
-        sleep 5;
-        python manage.py migrate --no-input &&
-        gunicorn sms_service.wsgi:application --bind 0.0.0.0:8000
-      "
+    command: gunicorn sms_service.wsgi:application --bind 0.0.0.0:8000
     restart: always
 
-  # ---------------- SALE ----------------
   sale:
     build: ./sale_service
     container_name: amcollar-sale
-    env_file:
-      - ./sale_service/.env
+    env_file: ./sale_service/.env
     depends_on:
       db:
         condition: service_healthy
@@ -170,20 +135,13 @@ services:
         condition: service_healthy
     ports:
       - "8008:8000"
-    command: >
-      sh -c "
-        sleep 10;
-        python manage.py migrate --no-input &&
-        gunicorn sale_service.wsgi:application --bind 0.0.0.0:8000
-      "
+    command: gunicorn sale_service.wsgi:application --bind 0.0.0.0:8000
     restart: always
 
-  # ---------------- VET ----------------
   vet:
     build: ./vet_service
     container_name: amcollar-vet
-    env_file:
-      - ./vet_service/.env
+    env_file: ./vet_service/.env
     depends_on:
       db:
         condition: service_healthy
@@ -191,20 +149,13 @@ services:
         condition: service_healthy
     ports:
       - "8005:8000"
-    command: >
-      sh -c "
-        sleep 12;
-        python manage.py migrate --no-input &&
-        gunicorn vet_service.wsgi:application --bind 0.0.0.0:8000
-      "
+    command: gunicorn vet_service.wsgi:application --bind 0.0.0.0:8000
     restart: always
 
-  # ---------------- GATEWAY ----------------
   gateway:
     build: ./gateway
     container_name: amcollar-gateway
-    env_file:
-      - ./gateway/.env
+    env_file: ./gateway/.env
     depends_on:
       auth:
         condition: service_started
@@ -222,14 +173,9 @@ services:
         condition: service_started
     ports:
       - "8000:8000"
-    command: >
-      sh -c "
-        sleep 5;
-        gunicorn gateway.wsgi:application --bind 0.0.0.0:8000
-      "
+    command: gunicorn gateway.wsgi:application --bind 0.0.0.0:8000
     restart: always
 
-  # ---------------- TCP SERVICE ----------------
   tcp_service:
     build: ./tcp_service
     container_name: tcp-service
@@ -243,7 +189,6 @@ services:
     command: python -u /app/tcp_server.py
     restart: always
 
-  # ---------------- PROCESSES ----------------
   gyro_service:
     build: ./process_server/gyro_service
     container_name: gyro-service
@@ -274,3 +219,4 @@ services:
 
 volumes:
   db_data:
+  kafka_data:
