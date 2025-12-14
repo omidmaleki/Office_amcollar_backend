@@ -8,7 +8,7 @@ KAFKA_SERVERS = "kafka:9092"
 
 FS = 150              # Sampling rate
 SEND_COUNT = 10   # چند batch برای محاسبه HR و SpO2
-HRV_COUNT = 30         # چند HR برای محاسبه HRV
+HRV_COUNT = 3         # چند HR برای محاسبه HRV
 
 # Buffers
 ir_buffer = []
