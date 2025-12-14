@@ -2,7 +2,7 @@
 import json
 import os
 from kafka import KafkaConsumer
-from gyro_process import process_gyro_data
+from gyro_process import process_window
 
 # پیکربندی Kafka
 KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP", "kafka:9092")
@@ -26,7 +26,7 @@ for msg in consumer:
         payload = json.loads(payload_str)
 
         # پردازش با gyro_process
-        result = process_gyro_data(payload)
+        result = process_window(payload)
         print(f"[Processed] Device: {raw_msg.get('device_ip')} → Payload: {payload} → Result: {result}", flush=True)
 
     except Exception as e:
