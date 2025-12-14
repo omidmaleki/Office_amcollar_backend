@@ -101,7 +101,8 @@ def kafka_worker(port):
         if len(batch) >= BATCH_SIZE:
             try:
                 for item in batch:
-                    producer.send(topic, item)
+                    # اضافه کردن کلید device_ip
+                    producer.send(topic, key=item['device_ip'].encode('utf-8'), value=item)
                 producer.flush()
                 print(f"[Kafka] Sent {len(batch)} messages → topic: {topic}", flush=True)
             except Exception as e:
@@ -114,7 +115,7 @@ def kafka_worker(port):
         if batch and (time.time() - last_send_time > 0.5):
             try:
                 for item in batch:
-                    producer.send(topic, item)
+                    producer.send(topic, key=item['device_ip'].encode('utf-8'), value=item)
                 producer.flush()
                 print(f"[Kafka] Sent {len(batch)} messages (timeout flush) → topic: {topic}", flush=True)
             except Exception as e:
@@ -122,6 +123,7 @@ def kafka_worker(port):
 
             batch.clear()
             last_send_time = time.time()
+
 
 
 # ---------------------- TCP SERVER ----------------------
