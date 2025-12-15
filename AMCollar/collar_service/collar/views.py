@@ -2,10 +2,36 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework import viewsets
 from .models import Collar, WifiCollarStatus
 from .serializers import CollarSerializer, WifiCollarStatusSerializer
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework import status
+
 
 class CollarViewSet(ModelViewSet):
     queryset = Collar.objects.all()
     serializer_class = CollarSerializer
+
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path=r"by-mac/(?P<mac_address>[^/.]+)"
+    )
+    def by_mac(self, request, mac_address=None):
+        try:
+            collar = Collar.objects.get(mac_address__iexact=mac_address)
+        except Collar.DoesNotExist:
+            return Response(
+                {"error": "Collar not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        return Response(
+            {
+                "id": collar.id,
+                "pet_id": collar.owner_id[0] if collar.owner_id else None
+            },
+            status=status.HTTP_200_OK
+        )
 
 class WifiCollarStatusViewSet(viewsets.ModelViewSet):
     queryset = WifiCollarStatus.objects.all()
@@ -18,3 +44,4 @@ class WifiCollarStatusViewSet(viewsets.ModelViewSet):
         if owner_id:
             qs = qs.filter(owner_id=owner_id)
         return qs
+
