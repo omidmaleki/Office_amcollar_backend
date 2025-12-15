@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 from decouple import config
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -136,3 +137,12 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.BrowsableAPIRenderer',
     ),
 }
+
+
+COLLAR_SERVICE = os.getenv("COLLAR_SERVICE")
+PET_SERVICE = os.getenv("PET_SERVICE")
+OWNER_SERVICE = os.getenv("OWNER_SERVICE")
+SMS_SERVICE = os.getenv("SMS_SERVICE")
+VET_SERVICE = os.getenv("VET_SERVICE")
+
+ALERT_COOLDOWN_SECONDS = int(os.getenv("ALERT_COOLDOWN_SECONDS", 300))

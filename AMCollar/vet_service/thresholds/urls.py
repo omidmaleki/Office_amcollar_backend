@@ -5,15 +5,17 @@ from .views import (
     ThresholdViewSet,
     RadiographyViewSet,
     TestReportViewSet,
-    SurgeryHistoryViewSet
+    SurgeryHistoryViewSet,
+    ingest_gyro
 )
 
 router = DefaultRouter()
-router.register("", ThresholdViewSet, basename="threshold")
+router.register("thresholds", ThresholdViewSet, basename="threshold")
 router.register("radiography", RadiographyViewSet, basename="radiography")
 router.register("test-reports", TestReportViewSet, basename="test_reports")
 router.register("surgery-history", SurgeryHistoryViewSet, basename="surgery_history")
 
 urlpatterns = [
     path("", include(router.urls)),
+    path("gyro/ingest/", ingest_gyro),
 ]

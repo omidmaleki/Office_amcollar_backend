@@ -5,7 +5,7 @@ from django.db import models
 #        Threshold Model
 # -------------------------------
 class Threshold(models.Model):
-    pet_id = models.IntegerField()
+    pet_id = models.IntegerField(unique=True, db_index=True)
 
     # --- Heart Rate ---
     heart_rate = models.FloatField(default=70, blank=True, null=True)
@@ -100,3 +100,23 @@ class SurgeryHistory(models.Model):
 
     def __str__(self):
         return f"Surgery {self.surgery_name} for pet {self.pet_id}"
+
+class Activity(models.Model):
+    pet_id = models.IntegerField(db_index=True)
+    collar_id = models.IntegerField(db_index=True)
+
+    posture = models.CharField(max_length=20)
+    behavior = models.CharField(max_length=30)
+
+    activity_intensity = models.FloatField()
+    calories = models.FloatField()
+
+    sleep_time_sec = models.IntegerField(default=0)
+    activity_time_sec = models.IntegerField(default=0)
+
+    timestamp = models.DateTimeField()
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+
