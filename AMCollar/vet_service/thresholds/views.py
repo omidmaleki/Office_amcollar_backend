@@ -23,7 +23,8 @@ def ingest_gyro(request):
 
     if not mac or not metrics:
         return Response({"error": "invalid payload"}, status=400)
-
+    if not settings.COLLAR_SERVICE:
+        return Response({"error": "COLLAR_SERVICE not configured"}, status=500)
     # 1️⃣ Resolve collar by MAC
     collar_res = requests.get(
         f"{settings.COLLAR_SERVICE}/collars/by-mac/{mac}/",
@@ -49,16 +50,6 @@ def ingest_gyro(request):
         activity_time_sec=metrics["activity_time_sec"],
         timestamp=timestamp,
     )
-
-    # # 3️⃣ (اختیاری) Threshold check
-    # threshold = Threshold.objects.filter(pet_id=pet_id).first()
-    # if threshold:
-    #     from thresholds.services.threshold_engine import evaluate_activity
-    #     from thresholds.services.alert_service import trigger_alert
-    #
-    #     alert_type = evaluate_activity(metrics, threshold)
-    #     if alert_type:
-    #         trigger_alert(pet_id, alert_type)
 
     return Response({"status": "ok"})
 

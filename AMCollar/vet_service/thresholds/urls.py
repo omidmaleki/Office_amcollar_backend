@@ -17,5 +17,5 @@ router.register("surgery-history", SurgeryHistoryViewSet, basename="surgery_hist
 
 urlpatterns = [
     path("", include(router.urls)),
-    path("gyro/ingest/", ingest_gyro),
+    path("gyro/ingest/", ingest_gyro, name="ingest-gyro"),
 ]

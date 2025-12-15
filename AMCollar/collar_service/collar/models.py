@@ -24,7 +24,9 @@ class Collar(models.Model):
     mac_address = models.CharField(
         max_length=17,           # AA:BB:CC:DD:EE:FF
         unique=True,
-        db_index=True
+        db_index=True,
+        null=True,
+        blank=True,
     )
 
     owner_id = models.JSONField(default=list)

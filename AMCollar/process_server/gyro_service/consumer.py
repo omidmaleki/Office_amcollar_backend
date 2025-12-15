@@ -27,28 +27,32 @@ print(f"[Gyro Consumer] Listening on topic: {KAFKA_TOPIC}")
 for msg in consumer:
     raw_msg = msg.value
     try:
-        mac_address = raw_msg.get("mac_address")
+        payload_str = raw_msg.get("payload", "{}")
+        payload_dict = json.loads(payload_str)
+
+        mac_address = payload_dict.get("mac_address")
         if not mac_address:
             raise ValueError("mac_address missing")
 
-        payload_str = raw_msg.get("payload", "{}")
-        payload = json.loads(payload_str)
+        payload_data = payload_dict.get("payload")  # dict
+        if not isinstance(payload_data, dict):
+            raise ValueError("payload must be a dict")
 
-        # 🔹 پردازش داده gyro
-        result = process_gyro_data(payload)
+        # process_window expects a list of dicts
+        result = process_window(
+            [payload_data],
+            weight_kg=70,
+            height_m=1.75,
+            window_seconds=60
+        )
 
-        # 🔹 ارسال به Vet/Threshold
         request_payload = {
             "mac_address": mac_address,
             "metrics": result,
             "timestamp": msg.timestamp,
         }
 
-        response = requests.post(
-            VET_SERVICE_INGEST_URL,
-            json=request_payload,
-            timeout=3,
-        )
+        response = requests.post(VET_SERVICE_INGEST_URL, json=request_payload, timeout=3)
 
         if response.status_code == 200:
             print(f"[OK] MAC {mac_address} sent to Threshold")
