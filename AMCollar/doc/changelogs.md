@@ -18,3 +18,19 @@
 - ادغام شاخه `amcollar-Feature` در `amcollar-hesam-dev`.
 - ادغام شاخه `amcollar-hotfix` در شاخه توسعه.
 
+## [0.1.1] – 2025-12-14
+Added
+
+اضافه شدن بهبود در الگوریتم gyro consumer برای پردازش دقیق‌تر داده‌ها.
+
+Changed
+
+اصلاحات جزئی در ادغام شاخه‌ها و رفع مشکلات merge conflict بین main و amcollar-Feature.
+
+Fixed
+
+حل مشکلات مربوط به هم‌پوشانی کامیت‌ها پس از ادغام شاخه‌ها.
+
+Merged
+
+ادغام شاخه amcollar-Feature در amcollar-hesam-dev با رفع merge conflicts.
