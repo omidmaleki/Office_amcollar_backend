@@ -3,10 +3,17 @@ import json, os
 
 KAFKA_BROKER = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
 
-producer = KafkaProducer(
-    bootstrap_servers=KAFKA_BROKER,
-    value_serializer=lambda v: json.dumps(v).encode("utf-8")
-)
+
+import os
+
+if not os.getenv("DISABLE_KAFKA", "False") == "True":
+    producer = KafkaProducer(
+        bootstrap_servers=KAFKA_BROKER,
+        value_serializer=lambda v: json.dumps(v).encode("utf-8")
+    )
+else:
+    producer = None
+
 
 def send_threshold_update_event(vetform):
     """
