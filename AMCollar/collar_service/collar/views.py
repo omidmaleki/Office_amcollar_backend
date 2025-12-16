@@ -28,7 +28,7 @@ class CollarViewSet(ModelViewSet):
         return Response(
             {
                 "id": collar.id,
-                "pet_id": collar.owner_id
+                "owner_id": collar.owner_id
             },
             status=status.HTTP_200_OK
         )

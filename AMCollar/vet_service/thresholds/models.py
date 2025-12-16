@@ -119,4 +119,17 @@ class Activity(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
 
+class ActivityHourly(models.Model):
+    pet_id = models.IntegerField(db_index=True)
+    collar_id = models.IntegerField(db_index=True)
 
+    hour = models.DateTimeField(db_index=True)  # مثلا 2025-12-16 10:00
+
+    total_calories = models.FloatField(default=0)
+    activity_seconds = models.IntegerField(default=0)
+    sleep_seconds = models.IntegerField(default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("pet_id", "hour")

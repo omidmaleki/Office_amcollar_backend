@@ -57,6 +57,12 @@ services:
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
     depends_on:
       - kafka
+    # ---------------- REDIS ----------------
+  redis:
+    image: redis:7-alpine
+    container_name: amcollar-redis
+    ports:
+      - "6379:6379"
 
   # ---------------- AUTH SERVICE ----------------
   auth:
@@ -170,9 +176,12 @@ services:
   vet:
     build: ./vet_service
     container_name: amcollar-vet
+    env_file:
+      - .env
     depends_on:
       - db
       - kafka
+      - redis
     command: >
       sh -c "
         sleep 10;
@@ -183,8 +192,27 @@ services:
     ports:
       - "8005:8000"
 
-
-  # ---------------- GATEWAY ----------------
+# ---------------- CELERY WORKER ----------------
+  vet-celery:
+    build: ./vet_service
+    container_name: amcollar-vet-celery
+    command: celery -A vet_service worker -l info
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - db
+ # ---------------- CELERY BEAT ----------------
+  vet-celery-beat:
+    build: ./vet_service
+    container_name: amcollar-vet-celery-beat
+    command: celery -A vet_service beat -l info
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - db
+# ---------------- GATEWAY ----------------
   gateway:
     build: ./gateway
     container_name: amcollar-gateway

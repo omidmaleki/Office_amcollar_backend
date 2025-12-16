@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'vets',
     'thresholds',
     'rest_framework',
+    "django_celery_beat",
 ]
 
 MIDDLEWARE = [
@@ -149,3 +150,32 @@ OWNER_SERVICE = config("OWNER_SERVICE")
 SMS_SERVICE = config("SMS_SERVICE")
 
 ALERT_COOLDOWN_SECONDS = int(os.getenv("ALERT_COOLDOWN_SECONDS", 300))
+
+
+DATABASE_URL = config("DATABASE_URL")
+PORT = config("PORT", default=8000)
+
+CELERY_BROKER_URL = config("CELERY_BROKER_URL")
+CELERY_ACCEPT_CONTENT = config("CELERY_ACCEPT_CONTENT", default="json").split(",")
+CELERY_TASK_SERIALIZER = config("CELERY_TASK_SERIALIZER", default="json")
+CELERY_TIMEZONE = config("CELERY_TIMEZONE", default="UTC")
+
+KAFKA_BOOTSTRAP = config("KAFKA_BOOTSTRAP", default="kafka:9092")
+KAFKA_TOPIC = config("KAFKA_TOPIC", default="gyro_events")
+
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    # جمع‌آوری ساعتی Activity
+    "aggregate-activity-hourly": {
+        "task": "thresholds.tasks.aggregate_activity_hourly",
+        # "schedule": crontab(minute=0),  # هر ساعت در دقیقه صفر اجرا میشه
+        "schedule": 10.0,  # هر 10 ثانیه اجرا میشه
+    },
+    # بروزرسانی Threshold روزانه
+    "update-threshold-daily": {
+        "task": "thresholds.tasks.update_threshold_daily",
+        "schedule": crontab(hour=0, minute=5),  # هر روز ساعت 00:05 اجرا میشه
+        "args": ()  # میتونی pet_id رو داینامیک مدیریت کنی یا همه پت‌ها رو توی تسک بخونی
+    },
+}

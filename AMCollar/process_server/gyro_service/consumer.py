@@ -12,8 +12,8 @@ VET_SERVICE_INGEST_URL = os.getenv(
     "http://vet:8000/threshold/gyro/ingest/"
 )
 
-CLAR_SERVICE_BY_MAC_URL = os.getenv(
-    "CLAR_SERVICE_BY_MAC_URL",
+COLLAR_SERVICE_BY_MAC_URL = os.getenv(
+    "COLLAR_SERVICE_BY_MAC_URL",
     "http://collar:8000/collars/by-mac/"
 )
 
@@ -35,8 +35,7 @@ print(f"[Gyro Consumer] Listening on topic: {KAFKA_TOPIC}")
 for msg in consumer:
     raw_msg = msg.value
     try:
-        payload_str = raw_msg.get("payload", "{}")
-        payload_dict = json.loads(payload_str)
+        payload_dict = json.loads(raw_msg.get("payload", "{}"))
 
         mac_address = payload_dict.get("mac_address")
         if not mac_address:
@@ -46,36 +45,51 @@ for msg in consumer:
         if not isinstance(timestamp_ms, int):
             raise ValueError("timestamp (ms) missing or invalid")
 
+        # ------- فقط یک پیلود داریم -------
         payload_data = payload_dict.get("payload")
         if not isinstance(payload_data, dict):
             raise ValueError("payload must be a dict")
+        data_window = [payload_data]  # wrap dict into list for process_window
 
-        # -------- GET PET ID AND CLAR ID FROM CLAR --------
-        clar_resp = requests.get(f"{CLAR_SERVICE_BY_MAC_URL}{mac_address}/")
-        if clar_resp.status_code != 200:
-            raise ValueError(f"CLAR service returned {clar_resp.status_code}")
-        clar_info = clar_resp.json()
-        pet_id = clar_info.get("pet_id")
-        clar_id = clar_info.get("id")
-        if not pet_id or not clar_id:
-            raise ValueError("CLAR check failed, pet_id or clar_id missing")
+        # -------- GET COLLAR INFO --------
+        collar_resp = requests.get(f"{COLLAR_SERVICE_BY_MAC_URL}{mac_address}/")
+        collar_resp.raise_for_status()
+        collar_info = collar_resp.json()
+        owner_id = collar_info.get("owner_id")  # owner_id stored as pet_id in collar
+        collar_id = collar_info.get("id")
+        if not owner_id or not collar_id:
+            raise ValueError("COLLAR check failed, owner_id or collar_id missing")
 
-        # -------- GET PET INFO FROM VET SERVICE USING CLAR ID --------
-        pet_resp = requests.get(f"{VET_SERVICE_PET_URL}{clar_id}/")
-        if pet_resp.status_code != 200:
-            raise ValueError(f"Pet service returned {pet_resp.status_code}")
-        pet_info = pet_resp.json()
-        weight_kg = pet_info.get("weight_kg", 5)  # fallback 5kg
+        # -------- GET PET INFO USING OWNER ID --------
+        pet_resp = requests.get(f"{VET_SERVICE_PET_URL}?owner_id={owner_id}")
+        pet_resp.raise_for_status()
 
-        # پردازش gyro با وزن واقعی پت
+        pets = pet_resp.json()
+
+        if not isinstance(pets, list) or len(pets) == 0:
+            raise ValueError("No pet found for this owner")
+
+        pet = pets[0]  # فرض: هر owner فقط یک pet فعال
+
+        pet_id = pet.get("id")
+        weight_kg = pet.get("weight_kg", 5)
+        species = pet.get("species")
+
+        # -------- PROCESS GYRO --------
         result = process_window(
-            [payload_data],
+            data_window,
             weight_kg=weight_kg,
+            species_factor=1.0,
+            breed_factor=1.0,
             window_seconds=5
         )
 
+        # -------- SEND TO VET SERVICE --------
         request_payload = {
             "mac_address": mac_address,
+            "collar_id": collar_id,
+            "pet_id": pet_id,
+            "species": species,
             "metrics": result,
             "timestamp": timestamp_ms,
         }

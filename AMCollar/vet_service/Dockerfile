@@ -7,6 +7,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+COPY .env .env
+
 ENV PORT=8000
 
 CMD ["gunicorn", "vet_service.wsgi:application", "--bind", "0.0.0.0:8000"]

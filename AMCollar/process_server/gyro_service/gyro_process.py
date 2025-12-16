@@ -1,7 +1,7 @@
 import numpy as np
 from math import sqrt
 
-def process_window(data_window, weight_kg, breed_factor=1.0, species_factor=1.0, window_seconds=5):
+def process_window(data_window, weight_kg, species_factor, breed_factor, window_seconds=5):
     """
     data_window: list of sensor payloads over time window
     weight_kg: weight of the pet in kg

@@ -17,53 +17,35 @@ from datetime import datetime, timezone as dt_timezone
 from .models import Activity
 
 
-COLLAR_SERVICE = "http://collar:8000/collars/by-mac/"
 
 @api_view(["POST"])
 def ingest_gyro(request):
     mac = request.data.get("mac_address")
     metrics = request.data.get("metrics")
     timestamp_ms = request.data.get("timestamp")
+    pet_id = request.data.get("pet_id")
+    collar_id = request.data.get("collar_id")
 
-    if not mac or not metrics or not isinstance(timestamp_ms, int):
+    if not all([mac, metrics, pet_id, collar_id]) or not isinstance(timestamp_ms, int):
         return Response({"error": "invalid payload"}, status=400)
 
-    if not settings.COLLAR_SERVICE:
-        return Response({"error": "COLLAR_SERVICE not configured"}, status=500)
-
-    # 1️⃣ Resolve collar by MAC
-    collar_res = requests.get(
-        f"{settings.COLLAR_SERVICE}/collars/by-mac/{mac}/",
-        timeout=3
-    )
-
-    if collar_res.status_code != 200:
-        return Response({"error": "collar not found"}, status=404)
-
-    collar_data = collar_res.json()
-    collar_id = collar_data["id"]
-    pet_id = collar_data["pet_id"]
-
-    # ✅ تبدیل timestamp (ms) به datetime آگاه (UTC)
     timestamp_dt = datetime.fromtimestamp(
         timestamp_ms / 1000,
         tz=dt_timezone.utc
     )
 
-    # 2️⃣ ذخیره Activity
     Activity.objects.create(
         pet_id=pet_id,
         collar_id=collar_id,
-        posture=metrics.get("posture"),
-        behavior=metrics.get("behavior"),
-        activity_intensity=metrics.get("activity_count"),
-        calories=metrics.get("calories"),
-        # sleep_time_sec=metrics.get("sleep_time_sec"),
-        # activity_time_sec=metrics.get("activity_time_sec"),
+        posture=metrics.get("posture", "unknown"),
+        behavior=metrics.get("behavior", "unknown"),
+        activity_intensity=metrics.get("activity_count", 0),
+        calories=metrics.get("calories", 0),
         timestamp=timestamp_dt,
     )
 
     return Response({"status": "ok"})
+
 
 
 class PetFilterViewSet(ModelViewSet):
