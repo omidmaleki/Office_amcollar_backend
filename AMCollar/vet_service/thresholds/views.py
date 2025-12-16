@@ -56,10 +56,10 @@ def ingest_gyro(request):
         collar_id=collar_id,
         posture=metrics.get("posture"),
         behavior=metrics.get("behavior"),
-        activity_intensity=metrics.get("activity_intensity"),
+        activity_intensity=metrics.get("activity_count"),
         calories=metrics.get("calories"),
-        sleep_time_sec=metrics.get("sleep_time_sec"),
-        activity_time_sec=metrics.get("activity_time_sec"),
+        # sleep_time_sec=metrics.get("sleep_time_sec"),
+        # activity_time_sec=metrics.get("activity_time_sec"),
         timestamp=timestamp_dt,
     )
 

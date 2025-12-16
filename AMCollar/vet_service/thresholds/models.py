@@ -111,8 +111,8 @@ class Activity(models.Model):
     activity_intensity = models.FloatField()
     calories = models.FloatField()
 
-    sleep_time_sec = models.IntegerField(default=0)
-    activity_time_sec = models.IntegerField(default=0)
+    sleep_time_sec = models.IntegerField(default=0, null=True, blank=True)
+    activity_time_sec = models.IntegerField(default=0, null=True, blank=True)
 
     timestamp = models.DateTimeField()
 
