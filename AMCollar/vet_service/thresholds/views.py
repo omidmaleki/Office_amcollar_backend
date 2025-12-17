@@ -1,6 +1,7 @@
 # thresholds/views.py
 from rest_framework.viewsets import ModelViewSet
 from .models import Threshold, RadiographyImage, TestReport, SurgeryHistory, Activity
+from .realtime import send_activity_update_to_frontend
 from .serializers import (
     ThresholdSerializer,
     RadiographySerializer,
@@ -9,13 +10,8 @@ from .serializers import (
 )
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-import requests
-
-from django.conf import settings
 from datetime import datetime, timezone as dt_timezone
-
 from .models import Activity
-
 
 
 @api_view(["POST"])
@@ -34,15 +30,46 @@ def ingest_gyro(request):
         tz=dt_timezone.utc
     )
 
-    Activity.objects.create(
+    posture = metrics.get("posture", "unknown")
+    behavior = metrics.get("behavior", "unknown")
+    activity_intensity = metrics.get("activity_count", 0)
+    calories = metrics.get("calories", 0)
+
+    # -------- بررسی تغییرات --------
+    activity, created = Activity.objects.get_or_create(
         pet_id=pet_id,
         collar_id=collar_id,
-        posture=metrics.get("posture", "unknown"),
-        behavior=metrics.get("behavior", "unknown"),
-        activity_intensity=metrics.get("activity_count", 0),
-        calories=metrics.get("calories", 0),
-        timestamp=timestamp_dt,
+        defaults={
+            "posture": posture,
+            "behavior": behavior,
+            "activity_intensity": activity_intensity,
+            "calories": calories,
+            "timestamp": timestamp_dt,
+        }
     )
+
+    changed = False
+    if not created:
+        fields_to_update = {}
+        if activity.posture != posture:
+            fields_to_update["posture"] = posture
+            changed = True
+        if activity.behavior != behavior:
+            fields_to_update["behavior"] = behavior
+            changed = True
+        # اگر خواستی activity_intensity و calories هم چک کنی، اضافه کن
+        fields_to_update["activity_intensity"] = activity_intensity
+        fields_to_update["calories"] = calories
+        fields_to_update["timestamp"] = timestamp_dt
+
+        if changed or fields_to_update:
+            for k, v in fields_to_update.items():
+                setattr(activity, k, v)
+            activity.save(update_fields=fields_to_update.keys())
+
+    # -------- ارسال به فرانت اگر تغییر کرده --------
+    if changed or created:
+        send_activity_update_to_frontend(activity)
 
     return Response({"status": "ok"})
 

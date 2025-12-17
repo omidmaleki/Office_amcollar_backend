@@ -97,7 +97,7 @@ for msg in consumer:
         response = requests.post(
             VET_SERVICE_INGEST_URL,
             json=request_payload,
-            timeout=3
+            timeout=15
         )
 
         if response.status_code == 200:

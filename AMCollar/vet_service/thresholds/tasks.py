@@ -7,17 +7,12 @@ from .models import Activity, ActivityHourly, Threshold
 
 @shared_task
 def aggregate_activity_hourly():
-    # now = timezone.now()
-    # hour_start = now.replace(minute=0, second=0, microsecond=0)
-    # hour_end = hour_start + timedelta(hours=1)
-    #
-    # activities = Activity.objects.filter(
-    #     timestamp__gte=hour_start,
-    #     timestamp__lt=hour_end
-    # )
-
     now = timezone.now()
-    window_start = now.replace(microsecond=0)
+
+    window_start = now.replace(
+        second=(now.second // 10) * 10,
+        microsecond=0
+    )
     window_end = window_start + timedelta(seconds=10)
 
     activities = Activity.objects.filter(
@@ -29,7 +24,6 @@ def aggregate_activity_hourly():
 
     for pet_id in pet_ids:
         qs = activities.filter(pet_id=pet_id)
-
         collar_id = qs.first().collar_id if qs.exists() else None
 
         ActivityHourly.objects.update_or_create(
@@ -38,26 +32,39 @@ def aggregate_activity_hourly():
             defaults={
                 "collar_id": collar_id,
                 "total_calories": qs.aggregate(Sum("calories"))["calories__sum"] or 0,
-                "activity_seconds": qs.aggregate(Sum("activity_time_sec"))["activity_time_sec__sum"] or 0,
-                "sleep_seconds": qs.aggregate(Sum("sleep_time_sec"))["sleep_time_sec__sum"] or 0,
+                "activity_seconds": qs.aggregate(Sum("activity_intensity"))["activity_intensity__sum"] or 0,
+                "sleep_seconds": 0,
             }
         )
 
 
+
 @shared_task
-def update_threshold_daily(pet_id):
-    today = timezone.now().date()
+def update_threshold_daily():
+    # day = timezone.now().date() - timedelta(days=1)
+    day = timezone.now().date()
 
-    qs = ActivityHourly.objects.filter(
-        pet_id=pet_id,
-        hour__date=today
-    )
+    pet_ids = ActivityHourly.objects.filter(
+        hour__date=day
+    ).values_list("pet_id", flat=True).distinct()
 
-    Threshold.objects.update_or_create(
-        pet_id=pet_id,
-        defaults={
-            "calories_consumed": qs.aggregate(Sum("total_calories"))["total_calories__sum"] or 0,
-            "activity_amount": (qs.aggregate(Sum("activity_seconds"))["activity_seconds__sum"] or 0) / 60,
-            "sleep_amount": (qs.aggregate(Sum("sleep_seconds"))["sleep_seconds__sum"] or 0) / 3600,
-        }
-    )
+    for pet_id in pet_ids:
+        qs = ActivityHourly.objects.filter(
+            pet_id=pet_id,
+            hour__date=day
+        )
+
+        agg = qs.aggregate(
+            total_calories=Sum("total_calories"),
+            activity_seconds=Sum("activity_seconds"),
+            sleep_seconds=Sum("sleep_seconds")
+        )
+
+        Threshold.objects.update_or_create(
+            pet_id=pet_id,
+            defaults={
+                "calories_consumed": agg["total_calories"] or 0,
+                "activity_amount": (agg["activity_seconds"] or 0) / 60,
+                "sleep_amount": (agg["sleep_seconds"] or 0) / 3600,
+            }
+        )

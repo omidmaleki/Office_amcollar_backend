@@ -63,6 +63,11 @@ services:
     container_name: amcollar-redis
     ports:
       - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   # ---------------- AUTH SERVICE ----------------
   auth:
@@ -131,7 +136,11 @@ services:
         sleep 2;
         python manage.py makemigrations --no-input &&
         python manage.py migrate --no-input &&
-        gunicorn collar_service.wsgi:application --bind 0.0.0.0:8000
+        gunicorn collar_service.wsgi:application \
+       --bind 0.0.0.0:8000 \
+       --workers 3 \
+       --worker-class gevent \
+       --timeout 120
       "
     ports:
       - "8007:8000"
@@ -182,13 +191,7 @@ services:
       - db
       - kafka
       - redis
-    command: >
-      sh -c "
-        sleep 10;
-        python manage.py makemigrations --no-input &&
-        python manage.py migrate --no-input &&
-        gunicorn vet_service.wsgi:application --bind 0.0.0.0:8000
-      "
+    entrypoint: ["/app/entrypoint.sh"]
     ports:
       - "8005:8000"
 
@@ -200,9 +203,15 @@ services:
     env_file:
       - .env
     depends_on:
-      - redis
-      - db
- # ---------------- CELERY BEAT ----------------
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    restart: always
+
+  # ---------------- CELERY BEAT ----------------
   vet-celery-beat:
     build: ./vet_service
     container_name: amcollar-vet-celery-beat
@@ -210,8 +219,14 @@ services:
     env_file:
       - .env
     depends_on:
-      - redis
-      - db
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    restart: always
+
 # ---------------- GATEWAY ----------------
   gateway:
     build: ./gateway
@@ -229,7 +244,11 @@ services:
     command: >
       sh -c "
         sleep 5 &&
-        gunicorn gateway.wsgi:application --bind 0.0.0.0:8000
+        gunicorn gateway.wsgi:application \
+       --bind 0.0.0.0:8000 \
+       --workers 3 \
+       --worker-class gevent \
+       --timeout 120
       "
 
   # ---------------- TCP SERVICE (optional) ----------------

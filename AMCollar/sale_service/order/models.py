@@ -3,7 +3,7 @@ from payment.models import Payment
 
 class Order(models.Model):
     owner_id = models.IntegerField()
-    pet_id = models.IntegerField(null=True, blank=True)
+    pet_id = models.IntegerField()
     collar_id = models.IntegerField()
     vet_id = models.IntegerField(null=True, blank=True)
 

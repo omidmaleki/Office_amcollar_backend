@@ -34,3 +34,18 @@ Fixed
 Merged
 
 ادغام شاخه amcollar-Feature در amcollar-hesam-dev با رفع merge conflicts.
+
+## [0.1.2] – 2025-12-16
+Added
+
+بهبود و توسعه پردازش Gyro در gyro_process.py.
+
+به‌روزرسانی منطق فعالیت‌ها (activity) برای تحلیل دقیق‌تر داده‌ها.
+
+Changed
+
+اصلاح جریان (flow) فعالیت‌ها و ساعات مرتبط با activity hourlys.
+
+Fixed
+
+رفع مشکلات جریان پردازش DV-gyro-activity که باعث خطا در تحلیل داده‌ها می‌شد.

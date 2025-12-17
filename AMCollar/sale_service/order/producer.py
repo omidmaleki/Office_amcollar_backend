@@ -13,28 +13,22 @@ producer = KafkaProducer(
 )
 
 def send_order_event_to_vet(order, pet_detail=None, threshold=None):
-    """
-    ارسال event به vet_service
-    order: instance از مدل Order
-    pet_detail: دیکشنری با اطلاعات pet
-    threshold: دیکشنری با اطلاعات threshold
-    """
+    if not order.pet_id:
+        print(f"[SaleService] WARNING: order {order.id} has no pet_id, skipping sending to vet_service")
+        return
+
     vet_event = {
         "vet_id": order.vet_id,
         "owner_id": order.owner_id,
         "pet_id": order.pet_id,
         "purchase_id": order.id,
         "status": order.status,
-
-        # اطلاعات Pet
         "pet_name": pet_detail.get("name") if pet_detail else None,
         "pet_age": pet_detail.get("age") if pet_detail else None,
         "pet_race": pet_detail.get("race") if pet_detail else None,
         "pet_image": pet_detail.get("pet_image") if pet_detail else None,
         "pet_sex": pet_detail.get("sex") if pet_detail else None,
         "species": pet_detail.get("species") if pet_detail else None,
-
-        # Threshold
         "body_temperature": threshold.get("body_temperature") if threshold else None,
         "hrv": threshold.get("hrv") if threshold else None,
     }

@@ -21,7 +21,7 @@ class Vet(models.Model):
 
 
 class VetForm(models.Model):
-    vet_id = models.ForeignKey(Vet, on_delete=models.CASCADE)
+    vet = models.ForeignKey(Vet, on_delete=models.CASCADE, null=True, blank=True)
 
     # For identifying records
     owner_id = models.IntegerField()

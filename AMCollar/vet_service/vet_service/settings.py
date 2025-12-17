@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'thresholds',
     'rest_framework',
     "django_celery_beat",
+    "channels",
 ]
 
 MIDDLEWARE = [
@@ -163,6 +164,18 @@ CELERY_TIMEZONE = config("CELERY_TIMEZONE", default="UTC")
 KAFKA_BOOTSTRAP = config("KAFKA_BOOTSTRAP", default="kafka:9092")
 KAFKA_TOPIC = config("KAFKA_TOPIC", default="gyro_events")
 
+
+ASGI_APPLICATION = "vet_service.asgi.application"
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("redis", 6379)],
+        },
+    },
+}
+
 from celery.schedules import crontab
 
 CELERY_BEAT_SCHEDULE = {
@@ -175,7 +188,8 @@ CELERY_BEAT_SCHEDULE = {
     # بروزرسانی Threshold روزانه
     "update-threshold-daily": {
         "task": "thresholds.tasks.update_threshold_daily",
-        "schedule": crontab(hour=0, minute=5),  # هر روز ساعت 00:05 اجرا میشه
+        # "schedule": crontab(hour=0, minute=5),  # هر روز ساعت 00:05 اجرا میشه
+        "schedule": 30.0,   # هر 30 ثانیه
         "args": ()  # میتونی pet_id رو داینامیک مدیریت کنی یا همه پت‌ها رو توی تسک بخونی
     },
 }

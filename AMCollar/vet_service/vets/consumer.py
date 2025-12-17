@@ -22,11 +22,17 @@ def listen_order_events():
         data = message.value
 
         try:
+            vet_instance = Vet.objects.get(id=data["vet_id"])
+            pet_id = data.get("pet_id")
+            if pet_id is None:
+                print(f"[VetService] Skipping message because pet_id is None: {data}")
+                continue
+
             with transaction.atomic():
                 VetForm.objects.create(
-                    vet_id=Vet.objects.get(id=data["vet_id"]),
+                    vet=vet_instance,
                     owner_id=data["owner_id"],
-                    pet_id=data["pet_id"],
+                    pet_id=pet_id,
                     purchase_id=data["purchase_id"],
                     status=data.get("status", "pending"),
 
@@ -38,7 +44,6 @@ def listen_order_events():
                     body_temperature=data.get("body_temperature"),
                     hrv=data.get("hrv"),
                 )
-
                 print(f"[VetService] VetForm created for purchase_id {data['purchase_id']}")
 
         except Exception as e:
