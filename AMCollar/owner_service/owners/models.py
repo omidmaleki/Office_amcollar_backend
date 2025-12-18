@@ -11,6 +11,8 @@ class Owner(models.Model):
 
     vet_id = models.IntegerField(null=True, blank=True)
 
+    active = models.BooleanField(default=True)
+
     class Meta:
         verbose_name = "Owner"
         verbose_name_plural = "Owners"
