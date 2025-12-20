@@ -15,9 +15,11 @@ services:
       - db_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
-      interval: 5s
+      interval: 10s
       retries: 5
     restart: always
+    networks:
+      - backend
 
   # ---------------- ZOOKEEPER ----------------
   zookeeper:
@@ -26,20 +28,19 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
     restart: always
+    networks:
+      - backend
 
   # ---------------- KAFKA ----------------
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: amcollar-kafka
     depends_on:
-      db:
-        condition: service_healthy
       zookeeper:
         condition: service_started
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
@@ -50,7 +51,10 @@ services:
       interval: 10s
       retries: 10
     restart: always
+    networks:
+      - backend
 
+  # ---------------- KAFKA UI (اختیاری در prod) ----------------
   kafka-ui:
     image: provectuslabs/kafka-ui
     container_name: amcollar-kafka-ui
@@ -58,12 +62,14 @@ services:
       kafka:
         condition: service_healthy
     ports:
-      - "8085:8080"
+      - "8085:8080"   # فقط اگر واقعاً نیاز داری
     environment:
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
     restart: always
+    networks:
+      - backend
 
-  # ---------------- MICROSERVICES ----------------
+  # ---------------- AUTH ----------------
   auth:
     build: ./auth_service
     container_name: amcollar-auth
@@ -71,10 +77,16 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    ports:
-      - "8003:8000"
-    command: gunicorn auth_service.wsgi:application --bind 0.0.0.0:8000
+    command: >
+      sh -c "
+        python manage.py migrate --no-input &&
+        gunicorn auth_service.wsgi:application --bind 0.0.0.0:8000
+      "
+    expose:
+      - "8000"
     restart: always
+    networks:
+      - backend
 
   owner:
     build: ./owner_service
@@ -83,10 +95,16 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    ports:
-      - "8001:8000"
-    command: gunicorn owner_service.wsgi:application --bind 0.0.0.0:8000
+    command: >
+      sh -c "
+        python manage.py migrate --no-input &&
+        gunicorn owner_service.wsgi:application --bind 0.0.0.0:8000
+      "
+    expose:
+      - "8000"
     restart: always
+    networks:
+      - backend
 
   pet:
     build: ./pet_service
@@ -95,10 +113,16 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    ports:
-      - "8002:8000"
-    command: gunicorn pet_service.wsgi:application --bind 0.0.0.0:8000
+    command: >
+      sh -c "
+        python manage.py migrate --no-input &&
+        gunicorn pet_service.wsgi:application --bind 0.0.0.0:8000
+      "
+    expose:
+      - "8000"
     restart: always
+    networks:
+      - backend
 
   collar:
     build: ./collar_service
@@ -107,10 +131,16 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    ports:
-      - "8007:8000"
-    command: gunicorn collar_service.wsgi:application --bind 0.0.0.0:8000
+    command: >
+      sh -c "
+        python manage.py migrate --no-input &&
+        gunicorn collar_service.wsgi:application --bind 0.0.0.0:8000
+      "
+    expose:
+      - "8000"
     restart: always
+    networks:
+      - backend
 
   sms:
     build: ./sms_service
@@ -119,10 +149,16 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    ports:
-      - "8004:8000"
-    command: gunicorn sms_service.wsgi:application --bind 0.0.0.0:8000
+    command: >
+      sh -c "
+        python manage.py migrate --no-input &&
+        gunicorn sms_service.wsgi:application --bind 0.0.0.0:8000
+      "
+    expose:
+      - "8000"
     restart: always
+    networks:
+      - backend
 
   sale:
     build: ./sale_service
@@ -133,10 +169,16 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
-    ports:
-      - "8008:8000"
-    command: gunicorn sale_service.wsgi:application --bind 0.0.0.0:8000
+    command: >
+      sh -c "
+        python manage.py migrate --no-input &&
+        gunicorn sale_service.wsgi:application --bind 0.0.0.0:8000
+      "
+    expose:
+      - "8000"
     restart: always
+    networks:
+      - backend
 
   vet:
     build: ./vet_service
@@ -147,34 +189,54 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
-    ports:
-      - "8005:8000"
-    command: gunicorn vet_service.wsgi:application --bind 0.0.0.0:8000
+    command: >
+      sh -c "
+        python manage.py migrate --no-input &&
+        gunicorn vet_service.wsgi:application --bind 0.0.0.0:8000
+      "
+    expose:
+      - "8000"
     restart: always
+    networks:
+      - backend
 
   gateway:
     build: ./gateway
     container_name: amcollar-gateway
     env_file: ./gateway/.env
     depends_on:
-      auth:
-        condition: service_started
-      owner:
-        condition: service_started
-      pet:
-        condition: service_started
-      collar:
-        condition: service_started
-      sale:
-        condition: service_started
-      sms:
-        condition: service_started
-      vet:
-        condition: service_started
-    ports:
-      - "8000:8000"
-    command: gunicorn gateway.wsgi:application --bind 0.0.0.0:8000
+      - auth
+      - owner
+      - pet
+      - collar
+      - sale
+      - sms
+      - vet
+    command: >
+      sh -c "
+        gunicorn gateway.wsgi:application --bind 0.0.0.0:8000
+      "
+    expose:
+      - "8000"
     restart: always
+    networks:
+      - backend
+
+  # ---------------- NGINX (EDGE) ----------------
+  nginx:
+    image: nginx:alpine
+    container_name: amcollar-nginx
+    ports:
+      - "80:80"
+#      - "443:443"  # if you add SSl
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - gateway
+    restart: always
+    networks:
+      - backend
 
   tcp_service:
     build: ./tcp_service
@@ -185,10 +247,13 @@ services:
     environment:
       KAFKA_BOOTSTRAP: kafka:9092
     ports:
-      - "9001-9003:9001-9003"
+      - "9001-9003:9001-9003"   # فقط چون TCP public است
     command: python -u /app/tcp_server.py
     restart: always
+    networks:
+      - backend
 
+  # ---------------- PROCESS SERVICES ----------------
   gyro_service:
     build: ./process_server/gyro_service
     container_name: gyro-service
@@ -198,10 +263,10 @@ services:
     environment:
       KAFKA_BOOTSTRAP: kafka:9092
       KAFKA_TOPIC: gyro_events
-    ports:
-      - "9007:9001"
     command: python -u /app/consumer.py
     restart: always
+    networks:
+      - backend
 
   ppg_service:
     build: ./process_server/ppg_service
@@ -212,11 +277,14 @@ services:
     environment:
       KAFKA_BOOTSTRAP: kafka:9092
       KAFKA_TOPIC: ppg
-    ports:
-      - "9008:9001"
     command: python -u /app/consumer.py
     restart: always
+    networks:
+      - backend
 
 volumes:
   db_data:
-  kafka_data:
+networks:
+  backend:
+    driver: bridge
+
