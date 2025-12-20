@@ -1,116 +1,124 @@
-from kafka import KafkaConsumer
 import json
 import numpy as np
+from kafka import KafkaConsumer
+from datetime import datetime, timezone
+
 from HR_process import compute_hr
 from SPO2_process import compute_spo2
+from process_server.shared.device_context import resolve_device_context
+import requests
+import os
 
-KAFKA_SERVERS = "kafka:9092"
+KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP", "kafka:9092")
+KAFKA_TOPIC = "ppg"
 
-FS = 150              # Sampling rate
-SEND_COUNT = 10   # چند batch برای محاسبه HR و SpO2
-HRV_COUNT = 3         # چند HR برای محاسبه HRV
+VET_SERVICE_PPG_INGEST_URL = os.getenv(
+    "VET_SERVICE_PPG_INGEST_URL",
+    "http://vet:8000/threshold/ppg/ingest/"
+)
 
-# Buffers
+FS = 150
+SEND_COUNT = 10
+HRV_COUNT = 3
+
 ir_buffer = []
 red_buffer = []
 hr_list = []
-
-EXPECTED_SAMPLES = None   # تعداد نمونه واقعی هر batch را بعداً کشف می‌کنیم
+EXPECTED_SAMPLES = None
 
 
 def normalize_kafka_message(value):
-    """
-    این تابع تضمین می‌کند که:
-    - اگر Kafka لیست ارسال کرد، همان را برمی‌گرداند
-    - اگر پیام تکی ارسال شد، تبدیل به لیست می‌شود
-    """
-
     if isinstance(value, list):
         return value
-
     if isinstance(value, dict):
         return [value]
+    raise ValueError("Invalid Kafka message format")
 
-    raise ValueError(f"Invalid Kafka message format: {value}")
 
+consumer = KafkaConsumer(
+    KAFKA_TOPIC,
+    bootstrap_servers=KAFKA_BOOTSTRAP,
+    auto_offset_reset="latest",
+    enable_auto_commit=True,
+    group_id="ppg_group",
+    value_deserializer=lambda v: json.loads(v.decode("utf-8"))
+)
 
-def start_consumer():
-    consumer = KafkaConsumer(
-        "ppg",
-        bootstrap_servers=KAFKA_SERVERS,
-        value_deserializer=lambda v: json.loads(v.decode("utf-8")),
-        auto_offset_reset="latest",
-        enable_auto_commit=True
-    )
+print("[PPG] Consumer started...")
 
-    print("[PPG] Consumer started...")
-
-    global ir_buffer, red_buffer, hr_list, EXPECTED_SAMPLES
-
-    for message in consumer:
-
+for message in consumer:
+    try:
         batch_msgs = normalize_kafka_message(message.value)
 
-        # Debug: Print batch info
-        print(f"\n📥 Received Kafka batch with {len(batch_msgs)} items")
-
         for msg in batch_msgs:
-
-            # payload همیشه string است → باید json شود
             payload = json.loads(msg["payload"])
 
-            ir_samples = payload["samples"]["ir"]
-            red_samples = payload["samples"]["red"]
+            mac_address = payload.get("mac_address")
+            timestamp_ms = payload.get("timestamp")
 
-            # Detect expected number of samples per message (only first time)
+            if not mac_address or not isinstance(timestamp_ms, int):
+                raise ValueError("Invalid mac_address or timestamp")
+
+            samples = payload.get("samples", {})
+            ir_samples = samples.get("ir")
+            red_samples = samples.get("red")
+
+            if not ir_samples or not red_samples:
+                raise ValueError("IR/RED samples missing")
+
+            # ✅ resolve device context (shared)
+            context = resolve_device_context(mac_address)
+            pet_id = context["pet_id"]
+            collar_id = context["collar_id"]
+
+            timestamp_dt = datetime.fromtimestamp(
+                timestamp_ms / 1000,
+                tz=timezone.utc
+            )
+
             if EXPECTED_SAMPLES is None:
                 EXPECTED_SAMPLES = len(ir_samples)
-                print(f"🔍 Detected {EXPECTED_SAMPLES} samples per message")
+                print(f"[PPG] Detected {EXPECTED_SAMPLES} samples")
 
             ir_buffer.extend(ir_samples)
             red_buffer.extend(red_samples)
 
-        print(f"📊 buffers → IR: {len(ir_buffer)}, RED: {len(red_buffer)}")
-
-        # اگر به حد لازم رسیدیم پردازش کنیم
+        # ---------- PROCESS ----------
         if EXPECTED_SAMPLES and len(ir_buffer) >= SEND_COUNT * EXPECTED_SAMPLES:
-
             ir_array = np.array(ir_buffer, dtype=float)
             red_array = np.array(red_buffer, dtype=float)
 
-            print(f"⚙️ Processing {len(ir_array)} samples...")
+            hr = compute_hr(ir_array, FS)
+            spo2 = compute_spo2(ir_array, red_array)
 
-            # HR
-            try:
-                hr = compute_hr(ir_array, FS)
-                if hr:
-                    print(f"❤️ HR: {hr}")
-                    hr_list.append(hr)
-                else:
-                    print("⚠️ HR: No valid HR detected")
-            except Exception as e:
-                print(f"❌ HR error: {e}")
+            if hr:
+                hr_list.append(hr)
 
-            # SPO2
-            try:
-                spo2 = compute_spo2(ir_array, red_array)
-                if spo2:
-                    print(f"🩸 SPO2: {spo2}")
-                else:
-                    print("⚠️ SPO2: No valid SPO2 detected")
-            except Exception as e:
-                print(f"❌ SPO2 error: {e}")
+            hrv = None
+            if len(hr_list) >= HRV_COUNT:
+                hrv = float(np.mean(hr_list))
+                hr_list.clear()
 
-            # Clear buffers
             ir_buffer.clear()
             red_buffer.clear()
 
-        # HRV calculation
-        if len(hr_list) >= HRV_COUNT:
-            hrv = float(np.mean(hr_list))
-            print(f"💓 HRV (avg of {HRV_COUNT} HR values): {hrv}")
-            hr_list.clear()
+            # ---------- SEND TO VET ----------
+            requests.post(
+                VET_SERVICE_PPG_INGEST_URL,
+                json={
+                    "pet_id": pet_id,
+                    "collar_id": collar_id,
+                    "hr": hr,
+                    "spo2": spo2,
+                    "hrv": hrv,
+                    "timestamp": int(timestamp_dt.timestamp() * 1000)
+                },
+                timeout=10
+            )
 
+            print(
+                f"[PPG] sent → pet={pet_id} HR={hr} SPO2={spo2} HRV={hrv}"
+            )
 
-if __name__ == "__main__":
-    start_consumer()
+    except Exception as e:
+        print("[PPG ERROR]", e, message.value, flush=True)

@@ -1,8 +1,9 @@
 import json
 import os
-import requests
 from kafka import KafkaConsumer
 from gyro_process import process_window
+from process_server.shared.device_context import resolve_device_context
+import requests
 
 KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP", "kafka:9092")
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "gyro_events")
@@ -10,16 +11,6 @@ KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "gyro_events")
 VET_SERVICE_INGEST_URL = os.getenv(
     "VET_SERVICE_INGEST_URL",
     "http://vet:8000/threshold/gyro/ingest/"
-)
-
-COLLAR_SERVICE_BY_MAC_URL = os.getenv(
-    "COLLAR_SERVICE_BY_MAC_URL",
-    "http://collar:8000/collars/by-mac/"
-)
-
-VET_SERVICE_PET_URL = os.getenv(
-    "VET_SERVICE_PET_URL",
-    "http://pet:8000/pets/"
 )
 
 consumer = KafkaConsumer(
@@ -45,35 +36,19 @@ for msg in consumer:
         if not isinstance(timestamp_ms, int):
             raise ValueError("timestamp (ms) missing or invalid")
 
-        # ------- فقط یک پیلود داریم -------
         payload_data = payload_dict.get("payload")
         if not isinstance(payload_data, dict):
             raise ValueError("payload must be a dict")
-        data_window = [payload_data]  # wrap dict into list for process_window
 
-        # -------- GET COLLAR INFO --------
-        collar_resp = requests.get(f"{COLLAR_SERVICE_BY_MAC_URL}{mac_address}/")
-        collar_resp.raise_for_status()
-        collar_info = collar_resp.json()
-        owner_id = collar_info.get("owner_id")  # owner_id stored as pet_id in collar
-        collar_id = collar_info.get("id")
-        if not owner_id or not collar_id:
-            raise ValueError("COLLAR check failed, owner_id or collar_id missing")
+        data_window = [payload_data]
 
-        # -------- GET PET INFO USING OWNER ID --------
-        pet_resp = requests.get(f"{VET_SERVICE_PET_URL}?owner_id={owner_id}")
-        pet_resp.raise_for_status()
+        # ✅ RESOLVE CONTEXT (shared logic)
+        context = resolve_device_context(mac_address)
 
-        pets = pet_resp.json()
-
-        if not isinstance(pets, list) or len(pets) == 0:
-            raise ValueError("No pet found for this owner")
-
-        pet = pets[0]  # فرض: هر owner فقط یک pet فعال
-
-        pet_id = pet.get("id")
-        weight_kg = pet.get("weight_kg", 5)
-        species = pet.get("species")
+        pet_id = context["pet_id"]
+        collar_id = context["collar_id"]
+        species = context["species"]
+        weight_kg = context["weight_kg"]
 
         # -------- PROCESS GYRO --------
         result = process_window(

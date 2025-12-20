@@ -11,7 +11,7 @@ from .serializers import (
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from datetime import datetime, timezone as dt_timezone
-from .models import Activity
+from .models import Activity, PPGReading
 
 
 @api_view(["POST"])
@@ -73,6 +73,55 @@ def ingest_gyro(request):
 
     return Response({"status": "ok"})
 
+@api_view(["POST"])
+def ingest_ppg(request):
+    pet_id = request.data.get("pet_id")
+    collar_id = request.data.get("collar_id")
+    hr = request.data.get("hr")
+    spo2 = request.data.get("spo2")
+    hrv = request.data.get("hrv")
+    timestamp_ms = request.data.get("timestamp")
+
+    if not pet_id or not collar_id or not isinstance(timestamp_ms, int):
+        return Response({"error": "invalid payload"}, status=400)
+
+    timestamp_dt = datetime.fromtimestamp(
+        timestamp_ms / 1000,
+        tz=dt_timezone.utc
+    )
+
+    # ---------- 1. SAVE READING (HISTORY) ----------
+    PPGReading.objects.create(
+        pet_id=pet_id,
+        collar_id=collar_id,
+        heart_rate=hr,
+        spo2=spo2,
+        hrv=hrv,
+        timestamp=timestamp_dt
+    )
+
+    # ---------- 2. UPDATE THRESHOLD ----------
+    threshold, _ = Threshold.objects.get_or_create(pet_id=pet_id)
+
+    updated_fields = []
+
+    if hr is not None:
+        threshold.heart_rate = hr
+        updated_fields.append("heart_rate")
+
+    if spo2 is not None:
+        threshold.oxygen_saturation = spo2
+        updated_fields.append("oxygen_saturation")
+
+    if hrv is not None:
+        threshold.hrv = hrv
+        updated_fields.append("hrv")
+
+    if updated_fields:
+        threshold.updated_at = timestamp_dt
+        threshold.save(update_fields=updated_fields + ["updated_at"])
+
+    return Response({"status": "ok"})
 
 
 class PetFilterViewSet(ModelViewSet):

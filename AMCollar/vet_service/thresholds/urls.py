@@ -7,7 +7,7 @@ from .views import (
     RadiographyViewSet,
     TestReportViewSet,
     SurgeryHistoryViewSet,
-    ingest_gyro
+    ingest_gyro, ingest_ppg
 )
 
 router = DefaultRouter()
@@ -19,4 +19,5 @@ router.register("surgery-history", SurgeryHistoryViewSet, basename="surgery_hist
 urlpatterns = [
     path("", include(router.urls)),
     path("gyro/ingest/", ingest_gyro, name="ingest-gyro"),
+    path("ppg/ingest/", ingest_ppg, name="ingest-ppg"),
 ]

@@ -133,3 +133,21 @@ class ActivityHourly(models.Model):
 
     class Meta:
         unique_together = ("pet_id", "hour")
+
+
+class PPGReading(models.Model):
+    pet_id = models.IntegerField(db_index=True)
+    collar_id = models.IntegerField(db_index=True)
+
+    spo2 = models.FloatField(null=True, blank=True)
+    hrv = models.FloatField(null=True, blank=True)
+    heart_rate = models.FloatField(null=True, blank=True)
+
+    timestamp = models.DateTimeField(db_index=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["pet_id", "collar_id", "timestamp"]),
+        ]
