@@ -95,6 +95,7 @@ services:
     command: >
       sh -c "
         sleep 2 &&
+        python manage.py makemigrations --no-input &&
         python manage.py migrate --no-input &&
         gunicorn auth_service.wsgi:application --bind 0.0.0.0:8000
       "
@@ -115,6 +116,7 @@ services:
     command: >
       sh -c "
         sleep 2 &&
+        python manage.py makemigrations --no-input &&
         python manage.py migrate --no-input &&
         gunicorn owner_service.wsgi:application --bind 0.0.0.0:8000
       "
@@ -135,6 +137,7 @@ services:
     command: >
       sh -c "
         sleep 2 &&
+        python manage.py makemigrations --no-input &&
         python manage.py migrate --no-input &&
         gunicorn pet_service.wsgi:application --bind 0.0.0.0:8000
       "
@@ -154,7 +157,8 @@ services:
       DATABASE_URL: postgres://postgres:password@db:5432/amcollar
     command: >
       sh -c "
-        sleep 2 &&
+        sleep 4 &&
+        python manage.py makemigrations --no-input &&
         python manage.py migrate --no-input &&
         gunicorn collar_service.wsgi:application \
        --bind 0.0.0.0:8000 \
@@ -182,6 +186,7 @@ services:
     command: >
       sh -c "
         sleep 5 &&
+        python manage.py makemigrations --no-input &&
         python manage.py migrate --no-input &&
         gunicorn sale_service.wsgi:application --bind 0.0.0.0:8000
       "
@@ -200,6 +205,7 @@ services:
     command: >
       sh -c "
         sleep 2 &&
+        python manage.py makemigrations --no-input &&
         python manage.py migrate --no-input &&
         gunicorn sms_service.wsgi:application --bind 0.0.0.0:8000
       "
@@ -222,6 +228,7 @@ services:
     command: >
       sh -c "
         sleep 5 &&
+        python manage.py makemigrations --no-input &&
         python manage.py migrate --no-input &&
         gunicorn vet_service.wsgi:application --bind 0.0.0.0:8000
       "
@@ -279,6 +286,7 @@ services:
       - ./nginx/conf.d/default.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - gateway
+      - vet
     networks:
       - backend
 
@@ -306,7 +314,9 @@ services:
 
   # ---------------- PROCESS SERVICES ----------------
   gyro_service:
-    build: ./process_server/gyro_service
+    build:
+      context: ./process_server
+      dockerfile: gyro_service/Dockerfile
     container_name: gyro-service
     depends_on:
       kafka:
@@ -326,7 +336,9 @@ services:
       - backend
 
   ppg_service:
-    build: ./process_server/ppg_service
+    build:
+      context: ./process_server
+      dockerfile: ppg_service/Dockerfile
     container_name: ppg-service
     depends_on:
       kafka:
@@ -344,6 +356,7 @@ services:
     restart: always
     networks:
       - backend
+
 
   gps_service:
     build: ./process_server/gps_service

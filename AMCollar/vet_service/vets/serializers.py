@@ -4,6 +4,7 @@ from rest_framework.exceptions import ValidationError
 import requests
 
 class VetSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = Vet
         fields = [
@@ -15,7 +16,8 @@ class VetSerializer(serializers.ModelSerializer):
             "collars",
             "activated",
             "vet_license_number",
-            "created_at"
+            "created_at",
+            "rank"
         ]
 
 

@@ -2,7 +2,7 @@ import json
 import os
 from kafka import KafkaConsumer
 from gyro_process import process_window
-from process_server_shared.device_context import resolve_device_context
+from shared.device_context import resolve_device_context
 import requests
 
 KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP", "kafka:9092")
