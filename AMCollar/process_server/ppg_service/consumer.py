@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 from HR_process import compute_hr
 from SPO2_process import compute_spo2
-from process_server.shared.device_context import resolve_device_context
+from shared.device_context import resolve_device_context
 import requests
 import os
 
