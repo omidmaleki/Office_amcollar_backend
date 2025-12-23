@@ -26,7 +26,7 @@ class VetForm(models.Model):
     # For identifying records
     owner_id = models.IntegerField()
     pet_id = models.IntegerField()
-    purchase_id = models.IntegerField()
+    purchase_id = models.IntegerField(null=True, blank=True, default=None)
 
     # Pet Info stored locally
     pet_name = models.CharField(max_length=255, null=True, blank=True)

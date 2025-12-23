@@ -47,14 +47,16 @@ services:
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
     ports:
       - "9092:9092"   # dev only
     healthcheck:
       test: ["CMD", "kafka-topics", "--bootstrap-server", "kafka:9092", "--list"]
-      interval: 5s
+      interval: 30s
       retries: 10
     networks:
       - backend
+    restart: unless-stopped
 
   # ---------------- KAFKA UI ----------------
   kafka-ui:
@@ -195,24 +197,41 @@ services:
     networks:
       - backend
 
-  # ---------------- SMS SERVICE ----------------
+# ---------------- SMS SERVICE ----------------
   sms:
     build: ./sms_service
     container_name: amcollar-sms
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - CELERY_BROKER_URL=redis://redis:6379/0  # explicit env برای Redis
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - SMS_IR_API_KEY=your_api_key_here  # اگر env داری، اضافه کن
     depends_on:
       db:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:  # اضافه!
+        condition: service_healthy
     command: >
       sh -c "
-        sleep 2 &&
+        sleep 45 &&
         python manage.py makemigrations --no-input &&
         python manage.py migrate --no-input &&
-        gunicorn sms_service.wsgi:application --bind 0.0.0.0:8000
+        gunicorn sms_service.wsgi:application --bind 0.0.0.0:8000 &
+        celery -A sms_service worker -l info -Q celery --autoscale=0,4 &  # worker با Redis (autoscale: min=0, max=4)
+        python manage.py run_sms_consumer
       "
     expose:
       - "8000"
     networks:
       - backend
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ---------------- VET SERVICE ----------------
   vet:

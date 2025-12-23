@@ -17,6 +17,10 @@ from decouple import config
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+import os
+
+KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
@@ -41,6 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     'rest_framework',
+    'notification',
     'sms',
 ]
 
@@ -136,3 +141,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 SMSIR_API_KEY = config("SMSIR_API_KEY")
 SMSIR_LINE_NUMBER = config("SMSIR_LINE_NUMBER")
 SMSIR_TEMPLATE_ID = config("SMSIR_TEMPLATE_ID", cast=int)
+
+
+import os
+from celery import Celery
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'sms_service.settings')
+app = Celery('sms_service')
+app.config_from_object('django.conf:settings', namespace='CELERY')
+app.autodiscover_tasks()
