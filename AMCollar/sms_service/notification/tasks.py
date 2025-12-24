@@ -9,7 +9,8 @@ logger = logging.getLogger(__name__)
 # Message templates (لوکال-friendly: بدون لینک real، فقط order_id و pet_name)
 MESSAGE_TEMPLATES = {
     "ORDER_CREATED": "سفارشی برای شما ثبت شده. سفارش شماره {order_id}. (نام حیوان: {pet_name})",
-    "VET_ORDER_CREATED": "سفارش جدیدی برای شما ثبت شد از owner {owner_id}. (حیوان: {pet_name}, سفارش: {order_id})",  # **جدید: برای vet**
+    "VET_ORDER_CREATED": "سفارش جدیدی برای شما ثبت شد از {owner_name} {owner_id}. (حیوان: {pet_name}, سفارش: {order_id})",  # **جدید: برای vet**
+    "SUPPORT_ORDER_CREATED": "{owner_name} سفارش جدیدی ثبت کرد. شماره سفارش: {order_id}. (حیوان: {pet_name})",  # **جدید: برای پشتیبان**
     "DEFAULT": "پیامی از AMCollar: {message}",
 }
 

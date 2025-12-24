@@ -94,6 +94,9 @@ DATABASES = {
     }
 }
 
+# Support mobile
+SUPPORT_MOBILE = config('SUPPORT_MOBILE', default=None)
+
 KAFKA_BOOTSTRAP_SERVERS = config("KAFKA_BOOTSTRAP_SERVERS")
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators

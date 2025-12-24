@@ -7,15 +7,15 @@ import requests  # برای API call به Owner و Vet service
 logger = logging.getLogger(__name__)
 
 # آدرس Kafka Broker
-KAFKA_BROKER = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
+KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
 
 # آدرس Owner و Vet Service
 OWNER_SERVICE = "http://owner:8000"
-VET_SERVICE = "http://vet:8000"  # **اضافه: برای fetch vet phone**
+VET_SERVICE = "http://vet:8000"
 
 # ساخت Kafka Producer
 producer = KafkaProducer(
-    bootstrap_servers=KAFKA_BROKER,
+    bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
     value_serializer=lambda v: json.dumps(v).encode("utf-8")
 )
 
@@ -23,7 +23,7 @@ def send_order_event_to_vet(order, pet_detail=None, threshold=None):
     """
     ارسال eventهای Vet و SMS برای order ایجاد شده.
     - Vet event همیشه ارسال می‌شود (اگر pet_id وجود داشته باشد).
-    - SMS event فقط اگر موبایل owner/vet در دسترس باشد ارسال می‌شود.
+    - SMS event فقط اگر موبایل owner/vet/support در دسترس باشد ارسال می‌شود.
     """
     try:
         # چک اولیه pet_id
@@ -75,8 +75,9 @@ def send_order_event_to_vet(order, pet_detail=None, threshold=None):
             logger.error("[OrderService] Failed to send vet event for order_id=%s: %s", order.id, str(e))
 
         # ---------- SMS Events ----------
-        # **SMS برای Owner (قبلی)**
+        # SMS برای Owner
         mobile_owner = None
+        owner_name = None  # fetch از owner (برای استفاده در vet/support)
         try:
             r_owner = requests.get(
                 f"{OWNER_SERVICE}/owners/{order.owner_id}/",
@@ -87,7 +88,8 @@ def send_order_event_to_vet(order, pet_detail=None, threshold=None):
             owner_data = r_owner.json()
             if owner_data:
                 mobile_owner = owner_data.get("phone") or owner_data.get("mobile")
-                logger.debug("[OrderService] Fetched owner %s: mobile=%s", order.owner_id, mobile_owner)
+                owner_name = owner_data.get("name", "مشتری")  # نام owner رو بگیر
+                logger.debug("[OrderService] Fetched owner %s: mobile=%s, name=%s", order.owner_id, mobile_owner, owner_name)
         except Exception as e:
             logger.error("[OrderService] Failed to fetch owner %s: %s", order.owner_id, str(e))
 
@@ -114,7 +116,7 @@ def send_order_event_to_vet(order, pet_detail=None, threshold=None):
             except Exception as e:
                 logger.error("[OrderService] Failed to send owner SMS for order_id=%s: %s", order.id, str(e))
 
-        # **اضافه: SMS برای Vet**
+        # SMS برای Vet
         mobile_vet = None
         try:
             r_vet = requests.get(
@@ -141,6 +143,7 @@ def send_order_event_to_vet(order, pet_detail=None, threshold=None):
                     "order_id": order.id,
                     "pet_name": pet_detail.get("name") if pet_detail else "",
                     "owner_id": order.owner_id,  # برای message: "از owner {owner_id}"
+                    "owner_name": owner_name,  # از variable owner_name استفاده کن
                 },
                 "purchase_id": base_event["purchase_id"],
             }
@@ -156,19 +159,48 @@ def send_order_event_to_vet(order, pet_detail=None, threshold=None):
         else:
             logger.info("[OrderService] Skipping vet SMS for order_id=%s (no mobile)", order.id)
 
-        # Flush producer
+        # SMS برای Support
+        support_mobile = os.getenv("SUPPORT_MOBILE", None)  # fixed از env – شماره پشتیبان
+        if support_mobile and owner_name:  # فقط اگر support mobile ست باشه و owner_name موجود
+            sms_support_event = {
+                "event_type": "SEND_SMS",
+                "event_version": 1,
+                "order_id": order.id,
+                "mobile": support_mobile,
+                "template": "SUPPORT_ORDER_CREATED",  # template جدید
+                "params": {
+                    "order_id": order.id,
+                    "owner_name": owner_name,
+                    "pet_name": pet_detail.get("name") if pet_detail else "",
+                },
+                "purchase_id": base_event["purchase_id"],
+            }
+            try:
+                producer.send(
+                    topic="vetform_topic",
+                    key=f"support-sms-{order.id}".encode("utf-8"),
+                    value=sms_support_event,
+                )
+                logger.debug("[OrderService] Support SMS event sent for order_id=%s", order.id)
+            except Exception as e:
+                logger.error("[OrderService] Failed to send support SMS for order_id=%s: %s", order.id, str(e))
+        else:
+            logger.info("[OrderService] Skipping support SMS for order_id=%s (no support mobile or owner name)", order.id)
+
+        # Flush producer برای اطمینان از ارسال
         try:
-            producer.flush(timeout=10)
+            producer.flush(timeout=10)  # ۱۰ ثانیه timeout، غیربلوکی
             logger.debug("[OrderService] Producer flushed for order_id=%s", order.id)
         except Exception as e:
             logger.warning("[OrderService] Producer flush failed for order_id=%s: %s", order.id, str(e))
 
-        # Log نهایی
+        # Log نهایی (با support SMS)
         logger.info(
-            "[OrderService] Events processed for order_id=%s (vet: yes, owner SMS: %s, vet SMS: %s)",
+            "[OrderService] Events processed for order_id=%s (vet: yes, owner SMS: %s, vet SMS: %s, support SMS: %s)",
             order.id,
             "yes" if mobile_owner else "no",
-            "yes" if mobile_vet else "no"
+            "yes" if mobile_vet else "no",
+            "yes" if support_mobile and owner_name else "no"
         )
 
     except Exception as e:

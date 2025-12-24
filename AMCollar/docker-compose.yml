@@ -177,6 +177,8 @@ services:
   sale:
     build: ./sale_service
     container_name: amcollar-sale
+    env_file:
+      - .env
     depends_on:
       kafka:
         condition: service_healthy
