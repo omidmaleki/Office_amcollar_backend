@@ -4,7 +4,8 @@ from rest_framework.decorators import api_view
 import requests
 import time
 from rest_framework import status
-
+import logger
+import os
 # ---------------------- SERVICE URLs ----------------------
 OWNER_SERVICE = "http://owner:8000"
 PET_SERVICE = "http://pet:8000"
@@ -452,6 +453,15 @@ class RegisterOwnerPetInfoView(APIView):
             owner_update_res.raise_for_status()
             owner_updated_json = owner_update_res.json()
 
+            # ------------------------ 4) Send SMS Events to Kafka (جدید: بعد از موفقیت) ------------------------
+            try:
+                self._send_registration_sms_events(created_owner_id, owner_json,
+                                                   support_mobile=os.getenv("SUPPORT_MOBILE", None))
+                logger.info(f"[Gateway] SMS events sent for new owner {created_owner_id}")
+            except Exception as sms_error:
+                logger.error(f"[Gateway] Failed to send SMS events for owner {created_owner_id}: {sms_error}")
+                # ادامه بده – SMS fail crash نکن (non-critical)
+
             return Response({
                 "owner": owner_updated_json,
                 "pet": pet_json,
@@ -486,126 +496,63 @@ class RegisterOwnerPetInfoView(APIView):
                     pass
             return Response({"detail": str(e)}, status=500)
 
+    def _send_registration_sms_events(self, owner_id, owner_json, support_mobile=None):
+        """
+        ارسال event SMS برای owner جدید و support به Kafka.
+        - Owner: welcome message
+        - Support: "Owner جدید ثبت شد"
+        """
+        from kafka import KafkaProducer  # import محلی برای gateway
+        import json
 
-#
-#
-# class RegisterOwnerPetInfoView(APIView):
-#     def post(self, request):
-#         try:
-#             data = request.data
-#             owner_data = data.get("owner")
-#             pet_data = data.get("pet")
-#             vet_id = data.get("vet")
-#
-#             if not owner_data or not pet_data:
-#                 return Response(
-#                     {"detail": "owner and pet fields are required"},
-#                     status=400
-#                 )
-#
-#             # ------------------------
-#             # 1) Create Owner
-#             # ------------------------
-#             owner_payload = {
-#                 "name": owner_data.get("name"),
-#                 "phone": owner_data.get("phone"),
-#                 "address": owner_data.get("address", ""),
-#                 "vet_id": vet_id,
-#                 "pet_ids": [],
-#                 "collar_ids": {}
-#             }
-#
-#             owner_res = requests.post(f"{OWNER_SERVICE}/owners/", json=owner_payload)
-#
-#             if owner_res.status_code >= 400:
-#                 return Response(
-#                     {
-#                         "detail": "Owner service error",
-#                         "error": owner_res.json()
-#                     },
-#                     status=owner_res.status_code
-#                 )
-#
-#             owner_json = owner_res.json()
-#             owner_id = owner_json.get("id")
-#
-#             if not owner_id:
-#                 return Response({"detail": "Owner service did not return id"}, status=500)
-#
-#             # ------------------------
-#             # 2) Create Pet
-#             # ------------------------
-#             pet_payload = {
-#                 "name": pet_data.get("name"),
-#                 "species": pet_data.get("species"),
-#                 "sex": pet_data.get("sex"),
-#                 "age": pet_data.get("age"),
-#                 "race": pet_data.get("race"),
-#                 "owner_id": owner_id,
-#                 "vet_id": vet_id,
-#                 "collar_id": 0
-#             }
-#
-#             pet_res = requests.post(f"{PET_SERVICE}/pets/", json=pet_payload)
-#
-#             if pet_res.status_code >= 400:
-#                 # 🔥 اگر pet ساخته نشد → owner را rollback می‌کنیم
-#                 requests.delete(f"{OWNER_SERVICE}/owners/{owner_id}/")
-#                 return Response(
-#                     {
-#                         "detail": "Pet service error",
-#                         "error": pet_res.json()
-#                     },
-#                     status=pet_res.status_code
-#                 )
-#
-#             pet_json = pet_res.json()
-#             pet_id = pet_json.get("id")
-#
-#             if not pet_id:
-#                 requests.delete(f"{OWNER_SERVICE}/owners/{owner_id}/")
-#                 return Response({"detail": "Pet service did not return id"}, status=500)
-#
-#             # ------------------------
-#             # 3) Update Owner with pet_id
-#             # ------------------------
-#             owner_update_payload = {
-#                 "pet_ids": [pet_id],
-#                 "collar_ids": {}
-#             }
-#
-#             owner_update_res = requests.patch(
-#                 f"{OWNER_SERVICE}/owners/{owner_id}/",
-#                 json=owner_update_payload
-#             )
-#
-#             if owner_update_res.status_code >= 400:
-#                 # 🔥 rollback: pet را حذف می‌کنیم
-#                 requests.delete(f"{PET_SERVICE}/pets/{pet_id}/")
-#                 requests.delete(f"{OWNER_SERVICE}/owners/{owner_id}/")
-#
-#                 return Response(
-#                     {
-#                         "detail": "Failed to update owner with pet_id",
-#                         "error": owner_update_res.json()
-#                     },
-#                     status=owner_update_res.status_code
-#                 )
-#
-#             return Response(
-#                 {
-#                     "owner": owner_update_res.json(),
-#                     "pet": pet_json,
-#                     "vet": {"id": vet_id}
-#                 },
-#                 status=200
-#             )
-#
-#         except requests.exceptions.RequestException as e:
-#             return Response(
-#                 {"detail": f"Network error communicating with microservices: {str(e)}"},
-#                 status=503
-#             )
-#
-#         except Exception as e:
-#             return Response({"detail": str(e)}, status=500)
+        kafka_broker = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
+        producer = KafkaProducer(
+            bootstrap_servers=kafka_broker,
+            value_serializer=lambda v: json.dumps(v).encode("utf-8")
+        )
+
+        owner_mobile = owner_json.get("phone")
+        owner_name = owner_json.get("name", "مشتری")
+
+        if not owner_mobile:
+            raise ValueError("Owner phone not available")
+
+        # Event برای Owner (welcome)
+        owner_sms_event = {
+            "event_type": "SEND_SMS",
+            "event_version": 1,
+            "owner_id": owner_id,
+            "mobile": owner_mobile,
+            "template": "WELCOME_OWNER",  # template جدید برای welcome
+            "params": {
+                "owner_name": owner_name,
+                "pet_ids": owner_json.get("pet_ids", []),
+            },
+        }
+        producer.send(
+            topic="owner_topic",  # topic جدید برای owner events (یا "vetform_topic" اگر می‌خوای یکی)
+            key=f"owner-welcome-{owner_id}".encode("utf-8"),
+            value=owner_sms_event,
+        )
+
+        # Event برای Support (اگر mobile ست باشه)
+        if support_mobile:
+            support_sms_event = {
+                "event_type": "SEND_SMS",
+                "event_version": 1,
+                "owner_id": owner_id,
+                "mobile": support_mobile,
+                "template": "SUPPORT_NEW_OWNER",  # template جدید
+                "params": {
+                    "owner_name": owner_name,
+                    "owner_id": owner_id,
+                    "phone": owner_mobile,
+                },
+            }
+            producer.send(
+                topic="owner_topic",
+                key=f"support-new-owner-{owner_id}".encode("utf-8"),
+                value=support_sms_event,
+            )
+
+        producer.flush(timeout=5)  # flush برای اطمینان

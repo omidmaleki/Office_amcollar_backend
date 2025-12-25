@@ -11,6 +11,9 @@ MESSAGE_TEMPLATES = {
     "ORDER_CREATED": "سفارشی برای شما ثبت شده. سفارش شماره {order_id}. (نام حیوان: {pet_name})",
     "VET_ORDER_CREATED": "سفارش جدیدی برای شما ثبت شد از {owner_name} {owner_id}. (حیوان: {pet_name}, سفارش: {order_id})",  # **جدید: برای vet**
     "SUPPORT_ORDER_CREATED": "{owner_name} سفارش جدیدی ثبت کرد. شماره سفارش: {order_id}. (حیوان: {pet_name})",  # **جدید: برای پشتیبان**
+
+    "WELCOME_OWNER": "خوش آمدید {owner_name}! Petهای شما: {pet_ids}. از AMCollar.",
+    "SUPPORT_NEW_OWNER": "Owner جدید: {owner_name} ({owner_id}) با phone {phone} ثبت شد.",
     "DEFAULT": "پیامی از AMCollar: {message}",
 }
 
