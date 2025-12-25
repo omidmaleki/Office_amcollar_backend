@@ -25,13 +25,13 @@ def total_hours():
         return
 
     total = timedelta()
-    work_days = set()  # مجموعه برای شمارش روزهای منحصر به فرد
+    work_days = set()
     with open(FILE_NAME, mode='r') as f:
         reader = csv.DictReader(f)
         for row in reader:
             h, m, s = map(int, str(row["Duration"]).split(":"))
             total += timedelta(hours=h, minutes=m, seconds=s)
-            work_days.add(row["Date"])  # اضافه کردن تاریخ به مجموعه
+            work_days.add(row["Date"])
 
     total_hours = total.total_seconds() / 3600
     print(f"Total worked hours: {total_hours:.2f}h")
