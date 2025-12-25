@@ -1,4 +1,3 @@
-version: "3.8"
 
 services:
 
@@ -344,15 +343,15 @@ services:
   # ---------------- FRONTEND (Next.js) ----------------
   frontend:
     build:
-      context: ./amcollar-landing
-      dockerfile: Dockerfile
-    container_name: amcollar-frontend
+      context: ./amcollor-landing
+      dockerfile: amcollor-landing/Dockerfile-pro
+    container_name: amcollor-frontend
     environment:
       NODE_ENV: production
       PORT: 3000
     volumes:
-      - ./amcollar-landing/.next:/app/.next:ro
-      - ./amcollar-landing/public:/app/public:ro
+      - ./amcollor-landing/.next:/app/.next:ro
+      - ./amcollor-landing/public:/app/public:ro
     # No external ports - proxied by nginx
     depends_on:
       - gateway

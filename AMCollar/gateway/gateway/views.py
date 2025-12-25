@@ -4,8 +4,10 @@ from rest_framework.decorators import api_view
 import requests
 import time
 from rest_framework import status
-import logger
+import logging
 import os
+import json
+from kafka import KafkaProducer  # برای SMS events
 # ---------------------- SERVICE URLs ----------------------
 OWNER_SERVICE = "http://owner:8000"
 PET_SERVICE = "http://pet:8000"
@@ -368,14 +370,20 @@ def sms_proxy(request):
 
 # ---------------------- Combined Register Endpoint ----------------------
 
+
+logger = logging.getLogger(__name__)  # **فیکس: logger درست import و init**
+
+KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
+
 class RegisterOwnerPetInfoView(APIView):
     """
     Orchestrator برای ثبت همزمان Owner و Pet:
-    1. ابتدا صحت سرویس‌ها را بررسی می‌کنیم (ping/health)
-    2. Owner ساخته می‌شود
-    3. Pet ساخته می‌شود
-    4. Owner با pet_id آپدیت می‌شود
-    5. در صورت هر خطا، rollback کامل انجام می‌شود
+    1. Health check سرویس‌ها
+    2. Create Owner
+    3. Create Pet
+    4. Update Owner با pet_id
+    5. Rollback در خطا
+    6. Send SMS events به Kafka در موفقیت
     """
 
     def post(self, request):
@@ -385,7 +393,8 @@ class RegisterOwnerPetInfoView(APIView):
         vet_id = data.get("vet")
 
         if not owner_data or not pet_data:
-            return Response({"detail": "owner and pet fields are required"}, status=400)
+            logger.warning("[Gateway] Missing owner or pet data in request")  # **فیکس: msg اضافه**
+            return Response({"detail": "owner and pet fields are required"}, status=status.HTTP_400_BAD_REQUEST)
 
         created_owner_id = None
         created_pet_id = None
@@ -393,16 +402,18 @@ class RegisterOwnerPetInfoView(APIView):
         # ------------------------ 0) Health check سرویس‌ها ------------------------
         try:
             for service_url in [OWNER_SERVICE, PET_SERVICE]:
-                resp = requests.get(service_url + "/health/", timeout=3)
+                resp = requests.get(f"{service_url}/health/", timeout=3)
                 if resp.status_code != 200:
+                    logger.error(f"[Gateway] Service {service_url} unavailable (status {resp.status_code})")  # **فیکس: msg کامل**
                     return Response(
                         {"detail": f"Service {service_url} is unavailable"},
-                        status=503
+                        status=status.HTTP_503_SERVICE_UNAVAILABLE
                     )
         except requests.RequestException as e:
+            logger.error(f"[Gateway] Network error checking services: {str(e)}")  # **فیکس: msg**
             return Response(
                 {"detail": f"Network error checking services: {str(e)}"},
-                status=503
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
             )
 
         try:
@@ -420,6 +431,7 @@ class RegisterOwnerPetInfoView(APIView):
             owner_json = owner_res.json()
             created_owner_id = owner_json.get("id")
             if not created_owner_id:
+                logger.error("[Gateway] Owner service did not return id")  # **فیکس: msg**
                 raise Exception("Owner service did not return id")
 
             # ------------------------ 2) Create Pet ------------------------
@@ -438,6 +450,7 @@ class RegisterOwnerPetInfoView(APIView):
             pet_json = pet_res.json()
             created_pet_id = pet_json.get("id")
             if not created_pet_id:
+                logger.error("[Gateway] Pet service did not return id")  # **فیکس: msg**
                 raise Exception("Pet service did not return id")
 
             # ------------------------ 3) Update Owner با pet_id ------------------------
@@ -455,35 +468,38 @@ class RegisterOwnerPetInfoView(APIView):
 
             # ------------------------ 4) Send SMS Events to Kafka (جدید: بعد از موفقیت) ------------------------
             try:
-                self._send_registration_sms_events(created_owner_id, owner_json,
-                                                   support_mobile=os.getenv("SUPPORT_MOBILE", None))
+                self._send_registration_sms_events(created_owner_id, owner_json, support_mobile=os.getenv("SUPPORT_MOBILE", None))
                 logger.info(f"[Gateway] SMS events sent for new owner {created_owner_id}")
             except Exception as sms_error:
-                logger.error(f"[Gateway] Failed to send SMS events for owner {created_owner_id}: {sms_error}")
-                # ادامه بده – SMS fail crash نکن (non-critical)
+                logger.error(f"[Gateway] Failed to send SMS events for owner {created_owner_id}: {str(sms_error)}")  # **فیکس: msg کامل**
+                # ادامه بده – SMS fail crash نکن
 
             return Response({
                 "owner": owner_updated_json,
                 "pet": pet_json,
                 "vet": {"id": vet_id}
-            }, status=200)
+            }, status=status.HTTP_200_OK)
 
         except requests.RequestException as e:
-            # Rollback در صورت خطای شبکه
+            logger.error(f"[Gateway] Network error with microservices: {str(e)}")  # **فیکس: msg**
+            # Rollback
             if created_pet_id:
                 try:
                     requests.delete(f"{PET_SERVICE}/pets/{created_pet_id}/", timeout=5)
-                except:
-                    pass
+                    logger.info(f"[Gateway] Rolled back pet {created_pet_id}")
+                except Exception as rollback_e:
+                    logger.error(f"[Gateway] Rollback pet failed: {str(rollback_e)}")
             if created_owner_id:
                 try:
                     requests.delete(f"{OWNER_SERVICE}/owners/{created_owner_id}/", timeout=5)
-                except:
-                    pass
-            return Response({"detail": f"Network error communicating with microservices: {str(e)}"}, status=503)
+                    logger.info(f"[Gateway] Rolled back owner {created_owner_id}")
+                except Exception as rollback_e:
+                    logger.error(f"[Gateway] Rollback owner failed: {str(rollback_e)}")
+            return Response({"detail": f"Network error communicating with microservices: {str(e)}"}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
         except Exception as e:
-            # Rollback در صورت خطای داخلی
+            logger.error(f"[Gateway] Internal error in registration: {str(e)}")  # **فیکس: msg**
+            # Rollback
             if created_pet_id:
                 try:
                     requests.delete(f"{PET_SERVICE}/pets/{created_pet_id}/", timeout=5)
@@ -494,7 +510,7 @@ class RegisterOwnerPetInfoView(APIView):
                     requests.delete(f"{OWNER_SERVICE}/owners/{created_owner_id}/", timeout=5)
                 except:
                     pass
-            return Response({"detail": str(e)}, status=500)
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def _send_registration_sms_events(self, owner_id, owner_json, support_mobile=None):
         """
@@ -502,9 +518,6 @@ class RegisterOwnerPetInfoView(APIView):
         - Owner: welcome message
         - Support: "Owner جدید ثبت شد"
         """
-        from kafka import KafkaProducer  # import محلی برای gateway
-        import json
-
         kafka_broker = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
         producer = KafkaProducer(
             bootstrap_servers=kafka_broker,
@@ -515,7 +528,8 @@ class RegisterOwnerPetInfoView(APIView):
         owner_name = owner_json.get("name", "مشتری")
 
         if not owner_mobile:
-            raise ValueError("Owner phone not available")
+            logger.warning(f"[Gateway] No phone for owner {owner_id}, skipping owner SMS")  # **فیکس: msg**
+            return
 
         # Event برای Owner (welcome)
         owner_sms_event = {
@@ -523,14 +537,14 @@ class RegisterOwnerPetInfoView(APIView):
             "event_version": 1,
             "owner_id": owner_id,
             "mobile": owner_mobile,
-            "template": "WELCOME_OWNER",  # template جدید برای welcome
+            "template": "WELCOME_OWNER",  # template جدید
             "params": {
                 "owner_name": owner_name,
                 "pet_ids": owner_json.get("pet_ids", []),
             },
         }
         producer.send(
-            topic="owner_topic",  # topic جدید برای owner events (یا "vetform_topic" اگر می‌خوای یکی)
+            topic="vetform_topic",  # همون topic (یا "owner_topic" جدید)
             key=f"owner-welcome-{owner_id}".encode("utf-8"),
             value=owner_sms_event,
         )
@@ -550,9 +564,12 @@ class RegisterOwnerPetInfoView(APIView):
                 },
             }
             producer.send(
-                topic="owner_topic",
+                topic="vetform_topic",
                 key=f"support-new-owner-{owner_id}".encode("utf-8"),
                 value=support_sms_event,
             )
+            logger.info(f"[Gateway] Support SMS event sent for owner {owner_id}")
+        else:
+            logger.warning(f"[Gateway] No support mobile, skipping support SMS for owner {owner_id}")
 
         producer.flush(timeout=5)  # flush برای اطمینان
