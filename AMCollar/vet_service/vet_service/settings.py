@@ -46,6 +46,8 @@ INSTALLED_APPS = [
     "channels",
 ]
 
+
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     "whitenoise.middleware.WhiteNoiseMiddleware",
@@ -123,12 +125,11 @@ USE_I18N = True
 
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.1/howto/static-files/
-
-STATIC_URL = "/static/"
-STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+# vet_service/settings.py
+STATIC_URL = '/static/'  # تغییر به این
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
@@ -193,3 +194,15 @@ CELERY_BEAT_SCHEDULE = {
         "args": ()  # میتونی pet_id رو داینامیک مدیریت کنی یا همه پت‌ها رو توی تسک بخونی
     },
 }
+
+CSRF_TRUSTED_ORIGINS = [
+    'http://127.0.0.1:8033',  # برای localhost/testing
+    'http://localhost:8033',   # اگر از localhost استفاده می‌کنی
+    # اگر دامنه واقعی داری (مثل amcollar.com):
+    # 'https://amcollar.com',
+    # 'https://www.amcollar.com',
+]
+
+# برای admin، اگر از HTTPS استفاده می‌کنی (حتی در dev):
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')  # اگر scheme https داری
+USE_X_FORWARDED_HOST = True

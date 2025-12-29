@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="37e6085d-58d8-4d83-9dcb-92f2f49c4985" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/AMpollar.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/AMpollar.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/nginx/conf.d/default.conf" beforeDir="false" afterPath="$PROJECT_DIR$/nginx/conf.d/default.conf" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vet_service/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/vet_service/requirements.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vet_service/vet_service/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/vet_service/vet_service/settings.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vet_service/vet_service/urls.py" beforeDir="false" afterPath="$PROJECT_DIR$/vet_service/vet_service/urls.py" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="DjangoConsoleOptions" custom-start-script="import sys; print('Python %s on %s' % (sys.version, sys.platform))&#10;import django; print('Django %s' % django.get_version())&#10;sys.path.extend([WORKING_DIR_AND_PYTHON_PATHS])&#10;if 'setup' in dir(django): django.setup()&#10;import django_manage_shell; django_manage_shell.run(PROJECT_ROOT)">
+    <option name="myCustomStartScript" value="import sys; print('Python %s on %s' % (sys.version, sys.platform))&#10;import django; print('Django %s' % django.get_version())&#10;sys.path.extend([WORKING_DIR_AND_PYTHON_PATHS])&#10;if 'setup' in dir(django): django.setup()&#10;import django_manage_shell; django_manage_shell.run(PROJECT_ROOT)" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Dockerfile" />
+        <option value="HTML File" />
+        <option value="Python Script" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 0
+}</component>
+  <component name="ProjectId" id="3691jq8D49Ye2JZYGQhsvoSvwwj" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;DefaultHtmlFileTemplate&quot;: &quot;HTML File&quot;,
+    &quot;Django Server.AMpollar.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.OpenDjangoStructureViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;amcollar-hesam-dev&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/projects/amcollar-backend/AMCollar/vet_service/vets&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;ts.external.directory.path&quot;: &quot;C:\\Program Files\\JetBrains\\PyCharm 2024.2\\plugins\\javascript-plugin\\jsLanguageServicesImpl\\external&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  }
+}</component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="D:\projects\amcollar-backend\AMCollar\vet_service\vets" />
+      <recent name="D:\projects\amcollar-backend\AMCollar\process_server\gps_service\locations" />
+      <recent name="D:\projects\amcollar-backend\AMCollar\process_server\gps_service" />
+      <recent name="D:\projects\amcollar-backend\AMCollar\vet_service" />
+      <recent name="D:\projects\amcollar-backend\AMCollar\sale_service" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="D:\projects\amcollar-backend\AMCollar\gateway\admin_gateway" />
+      <recent name="D:\projects\amcollar-backend\AMCollar\gateway" />
+      <recent name="D:\projects\amcollar-backend\AMCollar\gateway\admin_gateway\templates\admin_gateway" />
+      <recent name="D:\projects\amcollar-backend\AMCollar\sms_service\notification" />
+      <recent name="D:\projects\amcollar-backend\AMCollar\sms_service\sms" />
+    </key>
+  </component>
+  <component name="RunManager">
+    <configuration name="AMpollar" type="Python.DjangoServer" factoryName="Django server">
+      <module name="AMpollar" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+        <env name="DJANGO_SETTINGS_MODULE" value="amcollar_backend.settings" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="SDK_NAME" value="Python 3.12 (site)" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="launchJavascriptDebuger" value="false" />
+      <option name="port" value="8000" />
+      <option name="host" value="localhost" />
+      <option name="additionalOptions" value="" />
+      <option name="browserUrl" value="" />
+      <option name="runTestServer" value="false" />
+      <option name="runNoReload" value="false" />
+      <option name="useCustomRunCommand" value="false" />
+      <option name="customRunCommand" value="" />
+      <method v="2" />
+    </configuration>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-js-predefined-d6986cc7102b-410509235cf1-JavaScript-PY-242.20224.347" />
+        <option value="bundled-python-sdk-c2d6afa66fbe-39cff9de6eef-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-242.20224.347" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="37e6085d-58d8-4d83-9dcb-92f2f49c4985" name="Changes" comment="" />
+      <created>1764404111427</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1764404111427</updated>
+      <workItem from="1764404112477" duration="22000" />
+      <workItem from="1764404191721" duration="2518000" />
+      <workItem from="1764409566009" duration="12393000" />
+      <workItem from="1764480995848" duration="634000" />
+      <workItem from="1764481687436" duration="38334000" />
+      <workItem from="1764596235807" duration="33957000" />
+      <workItem from="1764691034396" duration="8324000" />
+      <workItem from="1764705757015" duration="4512000" />
+      <workItem from="1764743835697" duration="24088000" />
+      <workItem from="1764839398309" duration="8551000" />
+      <workItem from="1764918365538" duration="11376000" />
+      <workItem from="1765006922091" duration="29401000" />
+      <workItem from="1765087234116" duration="47837000" />
+      <workItem from="1765197592635" duration="2416000" />
+      <workItem from="1765200087274" duration="29940000" />
+      <workItem from="1765356754727" duration="25176000" />
+      <workItem from="1765462245392" duration="653000" />
+      <workItem from="1765544807955" duration="5489000" />
+      <workItem from="1765612589386" duration="16968000" />
+      <workItem from="1765636629851" duration="3487000" />
+      <workItem from="1765694215533" duration="602000" />
+      <workItem from="1765709106470" duration="2320000" />
+      <workItem from="1765713401529" duration="7035000" />
+      <workItem from="1765794480495" duration="13525000" />
+      <workItem from="1765867417818" duration="45737000" />
+      <workItem from="1766054946502" duration="1358000" />
+      <workItem from="1766056797314" duration="252000" />
+      <workItem from="1766212159929" duration="20586000" />
+      <workItem from="1766302794851" duration="12016000" />
+      <workItem from="1766477765131" duration="32359000" />
+      <workItem from="1766649079007" duration="14891000" />
+      <workItem from="1766671539870" duration="11970000" />
+      <workItem from="1766818799672" duration="2018000" />
+      <workItem from="1766827312473" duration="13361000" />
+      <workItem from="1766849199936" duration="9661000" />
+      <workItem from="1766997182680" duration="5473000" />
+      <workItem from="1767004928077" duration="1298000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/sms_service/sms/urls.py</url>
+          <line>1</line>
+          <option name="timeStamp" value="2" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/payment_service/payment_service/urls.py</url>
+          <line>16</line>
+          <option name="timeStamp" value="3" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/threshold_service/threshold_service/urls.py</url>
+          <line>16</line>
+          <option name="timeStamp" value="5" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/vet_service/vets/views.py</url>
+          <option name="timeStamp" value="6" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
+  </component>
+</project>
