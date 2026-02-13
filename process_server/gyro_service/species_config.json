@@ -1,0 +1,23 @@
+{
+  "dog": {
+    "species_factor": 1.1,
+    "breeds": {
+      "labrador": 1.05,
+      "golden_retriever": 1.05,
+      "german_shepherd": 1.1,
+      "husky": 1.15,
+      "bulldog": 0.95,
+      "poodle": 1.0,
+      "default": 1.0
+    }
+  },
+  "cat": {
+    "species_factor": 0.85,
+    "breeds": {
+      "persian": 0.95,
+      "siamese": 1.0,
+      "maine_coon": 1.1,
+      "default": 1.0
+    }
+  }
+}

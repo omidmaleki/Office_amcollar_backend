@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head><title>Dashboard</title></head>
+<body>
+<h1>Admin Dashboard</h1>
+<ul>
+{% for service in services %}
+    <li><a href="{{ service.proxy_path }}">{{ service.name }} Admin</a></li>  <!-- proxy_path استفاده کن -->
+{% endfor %}
+</ul>
+<!-- Logout: session clear کن -->
+<form method="post" action="{% url 'admin_gateway:login' %}">
+    {% csrf_token %}
+    <button type="submit">Logout</button>
+</form>
+</body>
+</html>

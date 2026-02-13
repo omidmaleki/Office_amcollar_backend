@@ -1,0 +1,103 @@
+server {
+    listen 443 ssl http2;
+    server_name amcollar.com www.amcollar.com;
+
+    ssl_certificate     /etc/letsencrypt/live/amcollar.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/amcollar.com/privkey.pem;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+
+    # همون کانفیگ قبلی رو اینجا هم بذار
+    resolver 127.0.0.11 ipv6=off valid=10s;
+    resolver_timeout 10s;
+
+    location = /api {
+        return 301 /api/;
+    }
+
+    # ---------------- API Proxies (Django Gateway) ----------------
+    location /api/ {
+        proxy_pass http://gateway:8000/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+        proxy_buffering off;
+    }
+
+    # ---------------- VET SERVICE ADMIN ----------------
+    location /admin/vet/ {
+        # trailing slash مهمه!
+        proxy_pass http://vet:8000/admin/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # کلید فیکس: SCRIPT_NAME رو به Django بگو تا prefix رو بدونه
+        proxy_set_header X-Script-Name /admin/vet;
+
+        # X-Forwarded-Prefix هم برای امنیت/redirect
+        proxy_set_header X-Forwarded-Prefix /admin/vet;
+
+        # Rewrite Location header (ساده نگه دار—X-Script-Name بیشتر کار رو می‌کنه)
+        proxy_redirect /admin/ /admin/vet/;
+
+        # Rewrite داخل body (برای لینک‌های HTML/فرم)
+        sub_filter_once off;
+        sub_filter_types text/html text/css text/javascript application/javascript;
+        sub_filter "/admin/" "/admin/vet/";
+        sub_filter "/static/" "/admin/vet/static/";
+        sub_filter "/media/" "/admin/vet/media/";
+
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+        proxy_buffering off;  # برای sub_filter
+    }
+
+    # Static files برای vet (این location حالا برای /admin/vet/static/ کار می‌کنه)
+    location /admin/vet/static/ {
+        proxy_pass http://vet:8000/static/;
+        proxy_set_header Host $host;  # یا 'vet' اگر لازم
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+    }
+
+    # Media files برای vet
+    location /admin/vet/media/ {
+        proxy_pass http://vet:8000/media/;
+        proxy_set_header Host $host;
+        expires 1d;
+        add_header Cache-Control "public";
+        access_log off;
+    }
+    # ---------------- Frontend (Next.js) ----------------
+    # پیش‌فرض برای بقیه پث‌ها
+    location / {
+        proxy_pass http://frontend:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+        proxy_buffering off;
+    }
+}

@@ -1,0 +1,99 @@
+# ======================
+# Production Dockerfile for Next.js Application
+# Multi-stage build optimized for production deployment
+# ======================
+
+# ======================
+# Stage 1: Dependencies
+# Install all npm dependencies
+# ======================
+FROM docker.arvancloud.ir/node:20-alpine AS deps
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package.json package-lock.json* ./
+
+# Install dependencies using npm ci for reproducible builds
+# Using npm mirror registry for better reliability in some regions
+RUN npm config set registry https://registry.npmmirror.com && \
+    npm ci --only=production --ignore-scripts && \
+    npm cache clean --force
+
+# ======================
+# Stage 2: Builder
+# Build the Next.js application
+# ======================
+FROM docker.arvancloud.ir/node:20-alpine AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
+
+# Copy all source files needed for build
+COPY . .
+
+# Disable Next.js telemetry for privacy and faster builds
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+
+# Build the Next.js application
+# This creates .next/standalone, .next/static, and other build artifacts
+RUN npm run build --loglevel verbose
+
+# ======================
+# Stage 3: Runner
+# Minimal production runtime with only necessary files
+# ======================
+FROM docker.arvancloud.ir/node:20-alpine AS runner
+
+# Set working directory
+WORKDIR /app
+
+# Set production environment variables
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Create non-root user for security
+# This prevents the application from running as root, reducing security risks
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+# Copy standalone build output
+# The standalone build includes server.js and all necessary server-side code
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+
+# Copy static files generated during build
+# These are optimized static assets (JS, CSS, images, etc.)
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Copy public folder with static assets
+# This includes images, fonts, and other public files
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+
+# Copy messages folder if it exists (for i18n translations)
+# This is optional - if messages folder doesn't exist, this will be skipped
+COPY --from=builder --chown=nextjs:nodejs /app/messages ./messages 2>/dev/null || true
+
+# Switch to non-root user
+USER nextjs
+
+# Expose port 3000
+# This is the port the Next.js server will listen on
+EXPOSE 3000
+
+# Healthcheck to ensure the container is running correctly
+# Checks HTTP 200 response on the root endpoint every 30 seconds
+# Starts checking after 10 seconds, allows 5 seconds timeout
+# Fails after 3 consecutive failures
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+
+# Start the Next.js server
+# The standalone build creates server.js in the root of the standalone folder
+CMD ["node", "server.js"]

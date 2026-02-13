@@ -1,0 +1,333 @@
+upstream auth_backend { server auth:8000; }
+upstream owner_backend { server owner:8000; }
+upstream pet_backend { server pet:8000; }
+upstream collar_backend { server collar:8000; }
+upstream sale_backend { server sale:8000; }
+upstream sms_backend { server sms:8000; }
+upstream vet_backend { server vet:8000; }
+upstream gateway_backend { server gateway:8000; }
+
+server {
+    listen 80;
+    server_name amcollar.com www.amcollar.com;
+    resolver 127.0.0.11 ipv6=off valid=10s;
+    resolver_timeout 10s;
+
+    # Redirect /api
+    location = /api {
+        return 301 /api/;
+    }
+
+    # API to gateway
+    location /api/ {
+        proxy_pass http://gateway_backend/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_connect_timeout 30s;
+        proxy_send_timeout 30s;
+        proxy_read_timeout 30s;
+        proxy_buffering off;
+    }
+
+    # ---------------- ADMIN PROXIES (برای همه سرویس‌ها) ----------------
+    # AUTH ADMIN
+    location /admin/auth/ {
+        proxy_pass http://auth_backend/admin/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Script-Name /admin/auth;
+        proxy_set_header X-Forwarded-Prefix /admin/auth;
+        proxy_redirect /admin/ /admin/auth/;
+        sub_filter_once off;
+        sub_filter_types text/html text/css text/javascript application/javascript;
+        sub_filter "/admin/" "/admin/auth/";
+        sub_filter "/static/" "/admin/auth/static/";
+        sub_filter "/media/" "/admin/auth/media/";
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+        proxy_buffering off;
+    }
+    location /admin/auth/static/ {
+        proxy_pass http://auth_backend/static/;
+        proxy_set_header Host $host;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+    }
+    location /admin/auth/media/ {
+        proxy_pass http://auth_backend/media/;
+        proxy_set_header Host $host;
+        expires 1d;
+        add_header Cache-Control "public";
+        access_log off;
+    }
+
+    # OWNER ADMIN
+    location /admin/owner/ {
+        proxy_pass http://owner_backend/admin/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Script-Name /admin/owner;
+        proxy_set_header X-Forwarded-Prefix /admin/owner;
+        proxy_redirect /admin/ /admin/owner/;
+        sub_filter_once off;
+        sub_filter_types text/html text/css text/javascript application/javascript;
+        sub_filter "/admin/" "/admin/owner/";
+        sub_filter "/static/" "/admin/owner/static/";
+        sub_filter "/media/" "/admin/owner/media/";
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+        proxy_buffering off;
+    }
+    location /admin/owner/static/ {
+        proxy_pass http://owner_backend/static/;
+        proxy_set_header Host $host;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+    }
+    location /admin/owner/media/ {
+        proxy_pass http://owner_backend/media/;
+        proxy_set_header Host $host;
+        expires 1d;
+        add_header Cache-Control "public";
+        access_log off;
+    }
+
+    # PET ADMIN
+    location /admin/pet/ {
+        proxy_pass http://pet_backend/admin/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Script-Name /admin/pet;
+        proxy_set_header X-Forwarded-Prefix /admin/pet;
+        proxy_redirect /admin/ /admin/pet/;
+        sub_filter_once off;
+        sub_filter_types text/html text/css text/javascript application/javascript;
+        sub_filter "/admin/" "/admin/pet/";
+        sub_filter "/static/" "/admin/pet/static/";
+        sub_filter "/media/" "/admin/pet/media/";
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+        proxy_buffering off;
+    }
+    location /admin/pet/static/ {
+        proxy_pass http://pet_backend/static/;
+        proxy_set_header Host $host;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+    }
+    location /admin/pet/media/ {
+        proxy_pass http://pet_backend/media/;
+        proxy_set_header Host $host;
+        expires 1d;
+        add_header Cache-Control "public";
+        access_log off;
+    }
+
+    # COLLAR ADMIN
+    location /admin/collar/ {
+        proxy_pass http://collar_backend/admin/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Script-Name /admin/collar;
+        proxy_set_header X-Forwarded-Prefix /admin/collar;
+        proxy_redirect /admin/ /admin/collar/;
+        sub_filter_once off;
+        sub_filter_types text/html text/css text/javascript application/javascript;
+        sub_filter "/admin/" "/admin/collar/";
+        sub_filter "/static/" "/admin/collar/static/";
+        sub_filter "/media/" "/admin/collar/media/";
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+        proxy_buffering off;
+    }
+    location /admin/collar/static/ {
+        proxy_pass http://collar_backend/static/;
+        proxy_set_header Host $host;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+    }
+    location /admin/collar/media/ {
+        proxy_pass http://collar_backend/media/;
+        proxy_set_header Host $host;
+        expires 1d;
+        add_header Cache-Control "public";
+        access_log off;
+    }
+
+    # SALE ADMIN
+    location /admin/sale/ {
+        proxy_pass http://sale_backend/admin/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Script-Name /admin/sale;
+        proxy_set_header X-Forwarded-Prefix /admin/sale;
+        proxy_redirect /admin/ /admin/sale/;
+        sub_filter_once off;
+        sub_filter_types text/html text/css text/javascript application/javascript;
+        sub_filter "/admin/" "/admin/sale/";
+        sub_filter "/static/" "/admin/sale/static/";
+        sub_filter "/media/" "/admin/sale/media/";
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+        proxy_buffering off;
+    }
+    location /admin/sale/static/ {
+        proxy_pass http://sale_backend/static/;
+        proxy_set_header Host $host;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+    }
+    location /admin/sale/media/ {
+        proxy_pass http://sale_backend/media/;
+        proxy_set_header Host $host;
+        expires 1d;
+        add_header Cache-Control "public";
+        access_log off;
+    }
+
+    # SMS ADMIN
+    location /admin/sms/ {
+        proxy_pass http://sms_backend/admin/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Script-Name /admin/sms;
+        proxy_set_header X-Forwarded-Prefix /admin/sms;
+        proxy_redirect /admin/ /admin/sms/;
+        sub_filter_once off;
+        sub_filter_types text/html text/css text/javascript application/javascript;
+        sub_filter "/admin/" "/admin/sms/";
+        sub_filter "/static/" "/admin/sms/static/";
+        sub_filter "/media/" "/admin/sms/media/";
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+        proxy_buffering off;
+    }
+    location /admin/sms/static/ {
+        proxy_pass http://sms_backend/static/;
+        proxy_set_header Host $host;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+    }
+    location /admin/sms/media/ {
+        proxy_pass http://sms_backend/media/;
+        proxy_set_header Host $host;
+        expires 1d;
+        add_header Cache-Control "public";
+        access_log off;
+    }
+
+    # VET ADMIN (از قبل داشتی، نگه داشتم)
+    location /admin/vet/ {
+        proxy_pass http://vet_backend/admin/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Script-Name /admin/vet;
+        proxy_set_header X-Forwarded-Prefix /admin/vet;
+        proxy_redirect /admin/ /admin/vet/;
+        sub_filter_once off;
+        sub_filter_types text/html text/css text/javascript application/javascript;
+        sub_filter "/admin/" "/admin/vet/";
+        sub_filter "/static/" "/admin/vet/static/";
+        sub_filter "/media/" "/admin/vet/media/";
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+        proxy_buffering off;
+    }
+    location /admin/vet/static/ {
+        proxy_pass http://vet_backend/static/;
+        proxy_set_header Host $host;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+    }
+    location /admin/vet/media/ {
+        proxy_pass http://vet_backend/media/;
+        proxy_set_header Host $host;
+        expires 1d;
+        add_header Cache-Control "public";
+        access_log off;
+    }
+
+    # GATEWAY ADMIN
+    location /admin/gateway/ {
+        proxy_pass http://gateway_backend/admin/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Script-Name /admin/gateway;
+        proxy_set_header X-Forwarded-Prefix /admin/gateway;
+        proxy_redirect /admin/ /admin/gateway/;
+        sub_filter_once off;
+        sub_filter_types text/html text/css text/javascript application/javascript;
+        sub_filter "/admin/" "/admin/gateway/";
+        sub_filter "/static/" "/admin/gateway/static/";
+        sub_filter "/media/" "/admin/gateway/media/";
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+        proxy_buffering off;
+    }
+    location /admin/gateway/static/ {
+        proxy_pass http://gateway_backend/static/;
+        proxy_set_header Host $host;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+    }
+    location /admin/gateway/media/ {
+        proxy_pass http://gateway_backend/media/;
+        proxy_set_header Host $host;
+        expires 1d;
+        add_header Cache-Control "public";
+        access_log off;
+    }
+
+    # ---------------- Frontend (Next.js) ----------------
+    location / {
+        proxy_pass http://frontend:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+        proxy_buffering off;
+    }
+}
