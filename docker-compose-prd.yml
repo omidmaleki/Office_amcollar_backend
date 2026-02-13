@@ -1,7 +1,7 @@
 services:
 
   # ---------------- DATABASE ----------------
-  db:
+  amcollar-db:
     image: docker.arvancloud.ir/postgres:15
     container_name: amcollar-db
     environment:
@@ -22,7 +22,7 @@ services:
     restart: unless-stopped
 
   # ---------------- ZOOKEEPER ----------------
-  zookeeper:
+  amcollar-zookeeper:
     image: docker.arvancloud.ir/confluentinc/cp-zookeeper:7.5.0
     container_name: amcollar-zookeeper
     environment:
@@ -32,18 +32,18 @@ services:
     restart: unless-stopped
 
   # ---------------- KAFKA ----------------
-  kafka:
+  amcollar-kafka:
     image: docker.arvancloud.ir/confluentinc/cp-kafka:7.5.0
     container_name: amcollar-kafka
     depends_on:
-      zookeeper:
+      amcollar-zookeeper:
         condition: service_started
     environment:
       KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ZOOKEEPER_CONNECT: amcollar-zookeeper:2181
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://amcollar-kafka:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
@@ -58,7 +58,7 @@ services:
     restart: unless-stopped
 
   # ---------------- REDIS ----------------
-  redis:
+  amcollar-redis:
     image: docker.arvancloud.ir/redis:7-alpine
     container_name: amcollar-redis
     command: redis-server --appendonly yes --requirepass RedisAmCollar2025!
@@ -73,16 +73,18 @@ services:
     restart: unless-stopped
 
   # ---------------- AUTH SERVICE ----------------
-  auth:
+  amcollar-auth:
     build: ./auth_service
     container_name: amcollar-auth
+    image: amcollar-auth:${IMAGE_TAG:-latest}
     env_file:
       - .env
     depends_on:
-      db:
+      amcollar-db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://postgres:password@db:5432/amcollar_auth
+      DATABASE_URL: postgres://postgres:password@amcollar-db:5432/amcollar_auth
+      # SMS_SERVICE_URL: http://amcollar-sms:8000 # Added to override default if needed, assuming apps read env vars
       DEBUG: false
     command: [ "/bin/sh", "-c", "python manage.py migrate --no-input && exec gunicorn auth_service.wsgi:application --bind 0.0.0.0:8000 --workers 3 --worker-class gevent --timeout 120" ]
     networks:
@@ -90,16 +92,17 @@ services:
     restart: unless-stopped
 
   # ---------------- OWNER SERVICE ----------------
-  owner:
+  amcollar-owner:
     build: ./owner_service
     container_name: amcollar-owner
+    image: amcollar-owner:${IMAGE_TAG:-latest}
     env_file:
       - .env
     depends_on:
-      db:
+      amcollar-db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://postgres:password@db:5432/amcollar_owner
+      DATABASE_URL: postgres://postgres:password@amcollar-db:5432/amcollar_owner
       DEBUG: false
     command: [ "/bin/sh", "-c", " python manage.py makemigrations --no-input && python manage.py migrate --no-input && python manage.py collectstatic --no-input && exec gunicorn owner_service.wsgi:application --bind 0.0.0.0:8000 --workers 3 --worker-class gevent --timeout 120" ]
     networks:
@@ -110,16 +113,17 @@ services:
     restart: unless-stopped
 
   # ---------------- PET SERVICE ----------------
-  pet:
+  amcollar-pet:
     build: ./pet_service
     container_name: amcollar-pet
+    image: amcollar-pet:${IMAGE_TAG:-latest}
     env_file:
       - .env
     depends_on:
-      db:
+      amcollar-db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://postgres:password@db:5432/amcollar_pet
+      DATABASE_URL: postgres://postgres:password@amcollar-db:5432/amcollar_pet
       DEBUG: false
     command: [ "/bin/sh", "-c", "python manage.py migrate --no-input && exec gunicorn pet_service.wsgi:application --bind 0.0.0.0:8000 --workers 3 --worker-class gevent --timeout 120" ]
     networks:
@@ -127,16 +131,17 @@ services:
     restart: unless-stopped
 
   # ---------------- COLLAR SERVICE ----------------
-  collar:
+  amcollar-collar:
     build: ./collar_service
     container_name: amcollar-collar
+    image: amcollar-collar:${IMAGE_TAG:-latest}
     env_file:
       - .env
     depends_on:
-      db:
+      amcollar-db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://postgres:password@db:5432/amcollar_collar
+      DATABASE_URL: postgres://postgres:password@amcollar-db:5432/amcollar_collar
       DEBUG: false
     command: [ "/bin/sh", "-c", "python manage.py migrate --no-input && exec gunicorn collar_service.wsgi:application --bind 0.0.0.0:8000 --workers 3 --worker-class gevent --timeout 120" ]
     networks:
@@ -144,19 +149,20 @@ services:
     restart: unless-stopped
 
   # ---------------- SALE SERVICE ----------------
-  sale:
+  amcollar-sale:
     build: ./sale_service
     container_name: amcollar-sale
+    image: amcollar-sale:${IMAGE_TAG:-latest}
     env_file:
       - .env
     depends_on:
-      kafka:
+      amcollar-kafka:
         condition: service_healthy
-      db:
+      amcollar-db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://postgres:password@db:5432/amcollar_sale
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      DATABASE_URL: postgres://postgres:password@amcollar-db:5432/amcollar_sale
+      KAFKA_BOOTSTRAP_SERVERS: amcollar-kafka:9092
       DEBUG: false
     command: [ "/bin/sh", "-c", "python manage.py migrate --no-input && exec gunicorn sale_service.wsgi:application --bind 0.0.0.0:8000 --workers 3 --worker-class gevent --timeout 120" ]
     networks:
@@ -164,22 +170,23 @@ services:
     restart: unless-stopped
 
   # ---------------- SMS SERVICE ----------------
-  sms:
+  amcollar-sms:
     build: ./sms_service
     container_name: amcollar-sms
+    image: amcollar-sms:${IMAGE_TAG:-latest}
     env_file:
       - .env
     depends_on:
-      db:
+      amcollar-db:
         condition: service_healthy
-      kafka:
+      amcollar-kafka:
         condition: service_healthy
-      redis:
+      amcollar-redis:
         condition: service_healthy
     environment:
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      CELERY_BROKER_URL: redis://:RedisAmCollar2025!@redis:6379/0
-      CELERY_RESULT_BACKEND: redis://:RedisAmCollar2025!@redis:6379/0
+      KAFKA_BOOTSTRAP_SERVERS: amcollar-kafka:9092
+      CELERY_BROKER_URL: redis://:RedisAmCollar2025!@amcollar-redis:6379/0
+      CELERY_RESULT_BACKEND: redis://:RedisAmCollar2025!@amcollar-redis:6379/0
       SMS_IR_API_KEY: your_api_key_here
       DEBUG: false
     command: [ "/bin/sh", "-c", "python manage.py makemigrations --no-input && python manage.py migrate --no-input && exec gunicorn sms_service.wsgi:application --bind 0.0.0.0:8000 --workers 3 --worker-class gevent --timeout 120 && celery -A sms_service worker -l info -Q celery --autoscale=0,4 && python manage.py run_sms_consumer" ]
@@ -188,15 +195,16 @@ services:
     restart: unless-stopped
 
   # ---------------- VET SERVICE ----------------
-  vet:
+  amcollar-vet:
     build: ./vet_service
     container_name: amcollar-vet
+    image: amcollar-vet:${IMAGE_TAG:-latest}
     env_file:
       - .env
     depends_on:
-      kafka:
+      amcollar-kafka:
         condition: service_healthy
-      db:
+      amcollar-db:
         condition: service_healthy
     environment:
       DEBUG: false
@@ -209,29 +217,30 @@ services:
     restart: unless-stopped
 
   # ---------------- CELERY BEAT ----------------
-  vet-celery-beat:
+  amcollar-vet-celery-beat:
     build: ./vet_service
     container_name: amcollar-vet-celery-beat
+    image: amcollar-vet:${IMAGE_TAG:-latest} # Reuse vet image
     env_file:
       - .env
     command: [ "celery", "-A", "vet_service", "beat", "-l", "info" ]
     depends_on:
-      db:
+      amcollar-db:
         condition: service_healthy
-      redis:
+      amcollar-redis:
         condition: service_healthy
-      kafka:
+      amcollar-kafka:
         condition: service_healthy
     networks:
       - backend
     restart: unless-stopped
 
   # ---------------- FRONTEND ----------------
-  frontend:
-    image: frontend:1.0.3
-    # build:
-    #   context: ./amcollor-landing
-    #   dockerfile: Dockerfile-pro
+  amcollar-frontend:
+    build:
+      context: ./amcollar-landing
+      dockerfile: Dockerfile-pro
+    image: amcollar-frontend:${IMAGE_TAG:-latest}
     container_name: amcollar-frontend
     environment:
       NODE_ENV: production
@@ -241,12 +250,12 @@ services:
       - backend
     restart: unless-stopped
 
-  # ---------------- FRONTEND ----------------
-  app-frontend:
-    image: appfrontend-prd:1.0.7
-    #    build:
-    # context: ./amcollarapp
-    #  dockerfile: Dockerfile-pro
+  # ---------------- APP FRONTEND ----------------
+  amcollar-app-frontend:
+    build:
+      context: ./amcollarapp
+      dockerfile: Dockerfile-pro
+    image: amcollar-app-frontend:${IMAGE_TAG:-latest}
     container_name: amcollar-app-frontend
     environment:
       NODE_ENV: production
@@ -257,26 +266,27 @@ services:
     restart: unless-stopped
 
   # ---------------- GATEWAY ----------------
-  gateway:
+  amcollar-gateway:
     build: ./gateway
     container_name: amcollar-gateway
+    image: amcollar-gateway:${IMAGE_TAG:-latest}
     env_file:
       - .env
     depends_on:
-      - auth
-      - owner
-      - pet
-      - collar
-      - sale
-      - sms
-      - vet
+      - amcollar-auth
+      - amcollar-owner
+      - amcollar-pet
+      - amcollar-collar
+      - amcollar-sale
+      - amcollar-sms
+      - amcollar-vet
     command: [ "/bin/sh", "-c", "python manage.py makemigrations --no-input && python manage.py migrate --no-input && exec gunicorn gateway.wsgi:application --bind 0.0.0.0:8000 --workers 3 --worker-class gevent --timeout 120" ]
     networks:
       - backend
     restart: unless-stopped
 
   # ---------------- NGINX ----------------
-  nginx:
+  amcollar-nginx:
     image: docker.arvancloud.ir/nginx:alpine
     container_name: amcollar-nginx
     ports:
@@ -292,8 +302,8 @@ services:
       - /var/lib/letsencrypt:/var/lib/letsencrypt:ro
       # - ./staticfiles:/opt/amcollar/staticfiles:ro
     depends_on:
-      - frontend
-      - gateway
+      - amcollar-frontend
+      - amcollar-gateway
     networks:
       - backend
     restart: unless-stopped

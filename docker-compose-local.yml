@@ -1,4 +1,3 @@
-
 services:
 
   # ---------------- DATABASE ----------------
@@ -10,12 +9,12 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: amcollar
     ports:
-      - "5432:5432"   # dev only
+      - "5432:5432" # dev only
     volumes:
       - db_data:/var/lib/postgresql/data
       - ./init-dbs.sql:/docker-entrypoint-initdb.d/init-dbs.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -53,9 +52,9 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
     ports:
-      - "9092:9092"   # dev only
+      - "9092:9092" # dev only
     healthcheck:
-      test: ["CMD", "kafka-topics", "--bootstrap-server", "kafka:9092", "--list"]
+      test: [ "CMD", "kafka-topics", "--bootstrap-server", "kafka:9092", "--list" ]
       interval: 30s
       timeout: 10s
       retries: 10
@@ -84,10 +83,10 @@ services:
     image: redis:7-alpine
     container_name: amcollar-redis
     ports:
-      - "6379:6379"   # dev only (no password for simplicity)
-    command: redis-server --appendonly yes  # no password in dev
+      - "6379:6379" # dev only (no password for simplicity)
+    command: redis-server --appendonly yes # no password in dev
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -106,13 +105,13 @@ services:
     build: ./auth_service
     container_name: amcollar-auth
     env_file:
-      - .env  # for custom vars like SMS key
+      - .env # for custom vars like SMS key
     depends_on:
       db:
         condition: service_healthy
     environment:
       DATABASE_URL: postgres://postgres:password@db:5432/amcollar
-      DEBUG: true  # dev mode
+      DEBUG: true # dev mode
     command: >
       sh -c "
         sleep 2 &&
@@ -265,7 +264,7 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
-      SMS_IR_API_KEY: your_api_key_here  # dev placeholder
+      SMS_IR_API_KEY: your_api_key_here # dev placeholder
       DEBUG: true
     depends_on:
       db:
@@ -352,18 +351,18 @@ services:
   # ---------------- FRONTEND (Next.js) ---------------- (from prod, adapted for dev)
   frontend:
     build:
-      context: ./amcollor-landing
-      dockerfile: Dockerfile
-      target: dev-runner  # dev stage
-    container_name: amcollor-frontend
+      context: ./amcollar-landing
+      dockerfile: Dockerfile-pro
+      # target: dev-runner # dev stage
+    container_name: amcollar-frontend
     environment:
       NODE_ENV: development
       PORT: 3000
     ports:
-      - "3000:3000"  # direct access
+      - "3000:3000" # direct access
     volumes:
-      - ./amcollor-landing:/app  # hot reload
-      - /app/node_modules  # use container node_modules
+      - ./amcollar-landing:/app # hot reload
+      - /app/node_modules # use container node_modules
     depends_on:
       - gateway
     networks:
@@ -419,8 +418,9 @@ services:
     depends_on:
       - gateway
       - vet
-      - frontend  # added for proxy to frontend
-    links: # این رو اضافه کن
+      - frontend # added for proxy to frontend
+    links:
+      # این رو اضافه کن
       - vet
       - gateway
       - auth
@@ -547,6 +547,7 @@ services:
 
 volumes:
   db_data:
+
 
 networks:
   backend:

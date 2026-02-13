@@ -9,14 +9,14 @@ import os
 import json
 from kafka import KafkaProducer  # برای SMS events
 # ---------------------- SERVICE URLs ----------------------
-OWNER_SERVICE = "http://owner:8000"
-PET_SERVICE = "http://pet:8000"
-COLLAR_SERVICE = "http://collar:8000"
-SALE_SERVICE = "http://sale:8000"
-SMS_SERVICE = "http://sms:8000"
-AUTH_SERVICE = "http://auth:8000"
-VET_SERVICE = "http://vet:8000"
-THRESHOLD_SERVICE = "http://threshold:8000"
+OWNER_SERVICE = os.getenv("OWNER_SERVICE_URL", "http://amcollar-owner:8000")
+PET_SERVICE = os.getenv("PET_SERVICE_URL", "http://amcollar-pet:8000")
+COLLAR_SERVICE = os.getenv("COLLAR_SERVICE_URL", "http://amcollar-collar:8000")
+SALE_SERVICE = os.getenv("SALE_SERVICE_URL", "http://amcollar-sale:8000")
+SMS_SERVICE = os.getenv("SMS_SERVICE_URL", "http://amcollar-sms:8000")
+AUTH_SERVICE = os.getenv("AUTH_SERVICE_URL", "http://amcollar-auth:8000")
+VET_SERVICE = os.getenv("VET_SERVICE_URL", "http://amcollar-vet:8000")
+THRESHOLD_SERVICE = os.getenv("THRESHOLD_SERVICE_URL", "http://amcollar-threshold:8000")
 
 
 # ---------------------- GENERIC PROXY CLASS ----------------------
